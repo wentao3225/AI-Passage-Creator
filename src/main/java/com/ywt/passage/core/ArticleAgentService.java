@@ -1,12 +1,19 @@
 package com.ywt.passage.core;
 
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel;
+import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.ywt.passage.constant.PromptConstant;
 import com.ywt.passage.model.dto.article.ArticleState;
+import com.ywt.passage.model.enums.ImageMethodEnum;
+import com.ywt.passage.model.enums.SseMessageTypeEnum;
+import com.ywt.passage.service.ImageSearchService;
+import com.ywt.passage.utils.GsonUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 
@@ -27,8 +34,6 @@ public class ArticleAgentService {
     @Resource
     private ImageSearchService imageSearchService;
 
-    @Resource
-    private CosService cosService;
 
     /**
      * 执行完整的文章生成流程
@@ -129,7 +134,7 @@ public class ArticleAgentService {
         String content = callLlm(prompt);
         List<ArticleState.ImageRequirement> imageRequirements = parseJsonListResponse(
                 content,
-                new TypeToken<List<ArticleState.ImageRequirement>>() {
+                new TypeToken<>() {
                 },
                 "配图需求"
         );
@@ -159,7 +164,8 @@ public class ArticleAgentService {
             }
 
             // 使用图片直接 URL（MVP 阶段不上传到 COS，简化流程）
-            String finalImageUrl = cosService.useDirectUrl(imageUrl);
+            // String finalImageUrl = cosService.useDirectUrl(imageUrl);
+            String finalImageUrl = "";
 
             // 创建配图结果
             ArticleState.ImageResult imageResult = buildImageResult(requirement, finalImageUrl, method);

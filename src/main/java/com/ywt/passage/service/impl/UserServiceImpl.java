@@ -5,7 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.ywt.passage.entity.User;
-import com.ywt.passage.enums.UserRoleEnum;
+import com.ywt.passage.model.enums.UserRoleEnum;
 import com.ywt.passage.exception.BusinessException;
 import com.ywt.passage.exception.ErrorCode;
 import com.ywt.passage.mapper.UserMapper;

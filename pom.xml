@@ -1,121 +1,99 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Parent -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.10</version>
+        <relativePath/>
+    </parent>
+
+    <!-- Project Info -->
+    <groupId>com.ywt.passage</groupId>
     <artifactId>AI-Passage-Creator</artifactId>
-    <build>
-        <plugins>
-            <plugin>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-                <configuration>
-                    <excludes>
-                        <exclude>
-                            <artifactId>lombok</artifactId>
-                            <groupId>org.projectlombok</groupId>
-                        </exclude>
-                    </excludes>
-                </configuration>
-                <groupId>org.springframework.boot</groupId>
-            </plugin>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <configuration>
-                            <annotationProcessorPaths>
-                                <path>
-                                    <artifactId>lombok</artifactId>
-                                    <groupId>org.projectlombok</groupId>
-                                </path>
-                            </annotationProcessorPaths>
-                        </configuration>
-                        <goals>
-                            <goal>compile</goal>
-                        </goals>
-                        <id>default-compile</id>
-                        <phase>compile</phase>
-                    </execution>
-                    <execution>
-                        <configuration>
-                            <annotationProcessorPaths>
-                                <path>
-                                    <artifactId>lombok</artifactId>
-                                    <groupId>org.projectlombok</groupId>
-                                </path>
-                            </annotationProcessorPaths>
-                        </configuration>
-                        <goals>
-                            <goal>testCompile</goal>
-                        </goals>
-                        <id>default-testCompile</id>
-                        <phase>test-compile</phase>
-                    </execution>
-                </executions>
-                <groupId>org.apache.maven.plugins</groupId>
-            </plugin>
-        </plugins>
-    </build>
+    <version>1.0.0</version>
+    <name>AI-Passage-Creator</name>
+    <description>AI-Passage-Creator</description>
+
+    <!-- Properties -->
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+
+    <!-- Dependencies -->
     <dependencies>
+        <!-- Spring Boot Web -->
         <dependency>
-            <artifactId>spring-boot-starter-web</artifactId>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
+        <!-- MySQL Driver -->
         <dependency>
-            <artifactId>mysql-connector-j</artifactId>
             <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Lombok -->
         <dependency>
-            <artifactId>lombok</artifactId>
             <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
 
+        <!-- Spring Boot Test -->
         <dependency>
-            <artifactId>spring-boot-starter-test</artifactId>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!-- Hutool -->
         <dependency>
-            <artifactId>hutool-all</artifactId>
             <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
             <version>5.8.43</version>
         </dependency>
 
+        <!-- Knife4j OpenAPI3 -->
         <dependency>
-            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
             <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
             <version>4.4.0</version>
         </dependency>
 
         <!-- MyBatis-Flex -->
         <dependency>
-            <artifactId>mybatis-flex-spring-boot3-starter</artifactId>
             <groupId>com.mybatis-flex</groupId>
+            <artifactId>mybatis-flex-spring-boot3-starter</artifactId>
             <version>1.11.1</version>
         </dependency>
 
-        <!-- HikariCP 数据库连接池 -->
+        <!-- HikariCP -->
         <dependency>
-            <artifactId>HikariCP</artifactId>
             <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
             <version>4.0.3</version>
         </dependency>
 
         <!-- Spring Data Redis -->
         <dependency>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
             <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
 
-        <!-- Spring Session + Redis -->
+        <!-- Spring Session Data Redis -->
         <dependency>
-            <artifactId>spring-session-data-redis</artifactId>
             <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-data-redis</artifactId>
         </dependency>
 
+        <!-- Spring AOP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-aop</artifactId>
@@ -127,29 +105,78 @@
             <artifactId>spring-ai-alibaba-agent-framework</artifactId>
             <version>1.1.0.0-RC2</version>
         </dependency>
-        <!-- Spring AI Alibaba DashScope Starter -->
+
+        <!-- Spring AI Alibaba DashScope -->
         <dependency>
             <groupId>com.alibaba.cloud.ai</groupId>
             <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
             <version>1.1.0.0-RC2</version>
         </dependency>
 
-
+        <!-- Gson (JSON 解析) -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
     </dependencies>
-    <description>AI-Passage-Creator</description>
-    <groupId>com.ywt.passage</groupId>
-    <modelVersion>4.0.0</modelVersion>
-    <name>AI-Passage-Creator</name>
-    <parent>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <groupId>org.springframework.boot</groupId>
-        <relativePath/>
-        <version>3.5.10</version>
-    </parent>
 
-    <properties>
-        <java.version>21</java.version>
-    </properties>
+    <!-- Build Configuration -->
+    <build>
+        <plugins>
+            <!-- Spring Boot Maven Plugin -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
 
-    <version>1.0.0</version>
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <!-- Compile Phase -->
+                    <execution>
+                        <id>default-compile</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </execution>
+                    <!-- Test Compile Phase -->
+                    <execution>
+                        <id>default-testCompile</id>
+                        <phase>test-compile</phase>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>org.projectlombok</groupId>
+                                    <artifactId>lombok</artifactId>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

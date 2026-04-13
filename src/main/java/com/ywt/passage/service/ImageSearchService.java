@@ -1,4 +1,6 @@
-package com.ywt.passage.core;
+package com.ywt.passage.service;
+
+import com.ywt.passage.model.enums.ImageMethodEnum;
 
 /**
  * 图片检索服务接口
