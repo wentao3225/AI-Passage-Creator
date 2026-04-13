@@ -1,0 +1,3 @@
+ai:
+  dashscope:
+    api-key: xxx  # 通义千问 API Key

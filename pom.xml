@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <artifactId>AI-Passage-Creator</artifactId>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <artifactId>lombok</artifactId>
+                            <groupId>org.projectlombok</groupId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+                <groupId>org.springframework.boot</groupId>
+            </plugin>
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <artifactId>lombok</artifactId>
+                                    <groupId>org.projectlombok</groupId>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                        <goals>
+                            <goal>compile</goal>
+                        </goals>
+                        <id>default-compile</id>
+                        <phase>compile</phase>
+                    </execution>
+                    <execution>
+                        <configuration>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <artifactId>lombok</artifactId>
+                                    <groupId>org.projectlombok</groupId>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                        <goals>
+                            <goal>testCompile</goal>
+                        </goals>
+                        <id>default-testCompile</id>
+                        <phase>test-compile</phase>
+                    </execution>
+                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+            </plugin>
+        </plugins>
+    </build>
+    <dependencies>
+        <dependency>
+            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>org.springframework.boot</groupId>
+        </dependency>
+
+        <dependency>
+            <artifactId>mysql-connector-j</artifactId>
+            <groupId>com.mysql</groupId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <artifactId>lombok</artifactId>
+            <groupId>org.projectlombok</groupId>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <artifactId>hutool-all</artifactId>
+            <groupId>cn.hutool</groupId>
+            <version>5.8.43</version>
+        </dependency>
+
+        <dependency>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+            <groupId>com.github.xiaoymin</groupId>
+            <version>4.4.0</version>
+        </dependency>
+
+        <!-- MyBatis-Flex -->
+        <dependency>
+            <artifactId>mybatis-flex-spring-boot3-starter</artifactId>
+            <groupId>com.mybatis-flex</groupId>
+            <version>1.11.1</version>
+        </dependency>
+
+        <!-- HikariCP 数据库连接池 -->
+        <dependency>
+            <artifactId>HikariCP</artifactId>
+            <groupId>com.zaxxer</groupId>
+            <version>4.0.3</version>
+        </dependency>
+
+        <!-- Spring Data Redis -->
+        <dependency>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <groupId>org.springframework.boot</groupId>
+        </dependency>
+
+        <!-- Spring Session + Redis -->
+        <dependency>
+            <artifactId>spring-session-data-redis</artifactId>
+            <groupId>org.springframework.session</groupId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Spring AI Alibaba Agent Framework -->
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>spring-ai-alibaba-agent-framework</artifactId>
+            <version>1.1.0.0-RC2</version>
+        </dependency>
+        <!-- Spring AI Alibaba DashScope Starter -->
+        <dependency>
+            <groupId>com.alibaba.cloud.ai</groupId>
+            <artifactId>spring-ai-alibaba-starter-dashscope</artifactId>
+            <version>1.1.0.0-RC2</version>
+        </dependency>
+
+
+    </dependencies>
+    <description>AI-Passage-Creator</description>
+    <groupId>com.ywt.passage</groupId>
+    <modelVersion>4.0.0</modelVersion>
+    <name>AI-Passage-Creator</name>
+    <parent>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <groupId>org.springframework.boot</groupId>
+        <relativePath/>
+        <version>3.5.10</version>
+    </parent>
+
+    <properties>
+        <java.version>21</java.version>
+    </properties>
+
+    <version>1.0.0</version>
+</project>
