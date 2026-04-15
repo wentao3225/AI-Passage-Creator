@@ -1,4 +1,7 @@
 spring:
+  config:
+    import:
+      - classpath:application-local.yaml
   application:
     name: AI-Passage-Creator
   # MySQL 数据库配置
@@ -21,6 +24,9 @@ spring:
   ai:
     dashscope:
       api-key: ${ai.dashscope.api-key}
+      chat:
+        options:
+          model: glm-5
 
 server:
   port: 8567
@@ -45,7 +51,8 @@ knife4j:
 mybatis-flex:
   configuration:
     map-underscore-to-camel-case: false
-
+pexels:
+  api-key: ${pexels.api-key}
 
 
 

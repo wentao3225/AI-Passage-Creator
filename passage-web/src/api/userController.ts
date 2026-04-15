@@ -5,9 +5,39 @@ import request from "@/request";
 /** 此处后端没有提供注释 POST /user/add */
 export async function addUser(
   body: API.UserAddRequest,
-  options?: { [key: string]: any }
+  options?: { [key: string]: any },
 ) {
   return request<API.BaseResponseLong>("/user/add", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 管理员分页查询用户 POST /user/list/page */
+export async function listUserByPage(
+  body: API.UserQueryRequest,
+  options?: { [key: string]: any },
+) {
+  return request<API.BaseResponsePageUserManageVO>("/user/list/page", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 管理员更新用户 POST /user/update */
+export async function updateUser(
+  body: API.UserUpdateRequest,
+  options?: { [key: string]: any },
+) {
+  return request<API.BaseResponseBoolean>("/user/update", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -20,7 +50,7 @@ export async function addUser(
 /** 此处后端没有提供注释 POST /user/delete */
 export async function deleteUser(
   body: API.DeleteRequest,
-  options?: { [key: string]: any }
+  options?: { [key: string]: any },
 ) {
   return request<API.BaseResponseBoolean>("/user/delete", {
     method: "POST",
@@ -43,7 +73,7 @@ export async function getLoginUser(options?: { [key: string]: any }) {
 /** 此处后端没有提供注释 POST /user/login */
 export async function userLogin(
   body: API.UserLoginRequest,
-  options?: { [key: string]: any }
+  options?: { [key: string]: any },
 ) {
   return request<API.BaseResponseLoginUserVO>("/user/login", {
     method: "POST",
@@ -66,7 +96,7 @@ export async function userLogout(options?: { [key: string]: any }) {
 /** 此处后端没有提供注释 POST /user/register */
 export async function userRegister(
   body: API.UserRegisterRequest,
-  options?: { [key: string]: any }
+  options?: { [key: string]: any },
 ) {
   return request<API.BaseResponseLong>("/user/register", {
     method: "POST",

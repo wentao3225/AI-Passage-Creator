@@ -1,5 +1,6 @@
 package com.ywt.passage.controller;
 
+import com.mybatisflex.core.paginate.Page;
 import com.ywt.passage.annotation.AuthCheck;
 import com.ywt.passage.common.BaseResponse;
 import com.ywt.passage.common.DeleteRequest;
@@ -10,13 +11,19 @@ import com.ywt.passage.exception.ErrorCode;
 import com.ywt.passage.exception.ThrowUtils;
 import com.ywt.passage.model.dto.user.UserAddRequest;
 import com.ywt.passage.model.dto.user.UserLoginRequest;
+import com.ywt.passage.model.dto.user.UserQueryRequest;
 import com.ywt.passage.model.dto.user.UserRegisterRequest;
+import com.ywt.passage.model.dto.user.UserUpdateRequest;
 import com.ywt.passage.model.vo.LoginUserVO;
+import com.ywt.passage.model.vo.UserManageVO;
 import com.ywt.passage.service.UserService;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 用户接口
+ */
 @RestController
 @RequestMapping("/user")
 public class UserController {
@@ -80,13 +87,40 @@ public class UserController {
     }
 
     /**
+     * 分页查询用户（管理员）
+     */
+    @PostMapping("/list/page")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Page<UserManageVO>> listUserByPage(@RequestBody UserQueryRequest userQueryRequest) {
+        ThrowUtils.throwIf(userQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        Page<UserManageVO> userVOPage = userService.listUserByPage(userQueryRequest);
+        return ResultUtils.success(userVOPage);
+    }
+
+    /**
+     * 更新用户（管理员）
+     */
+    @PostMapping("/update")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
+    public BaseResponse<Boolean> updateUser(@RequestBody UserUpdateRequest userUpdateRequest,
+                                            HttpServletRequest request) {
+        ThrowUtils.throwIf(userUpdateRequest == null || userUpdateRequest.getId() == null,
+                ErrorCode.PARAMS_ERROR);
+        User loginUser = userService.getLoginUser(request);
+        boolean result = userService.updateUser(userUpdateRequest, loginUser);
+        return ResultUtils.success(result);
+    }
+
+    /**
      * 删除用户（管理员）
      */
     @PostMapping("/delete")
     @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest) {
+    public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest,
+                                            HttpServletRequest request) {
         ThrowUtils.throwIf(deleteRequest == null || deleteRequest.getId() == null, ErrorCode.PARAMS_ERROR);
-        boolean result = userService.deleteUser(deleteRequest.getId());
+        User loginUser = userService.getLoginUser(request);
+        boolean result = userService.deleteUser(deleteRequest.getId(), loginUser);
         return ResultUtils.success(result);
     }
 }

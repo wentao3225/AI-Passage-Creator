@@ -1,3 +1,5 @@
 ai:
   dashscope:
-    api-key: xxx  # 通义千问 API Key
+    api-key: sk-315f33e201534a9e9be8a7eeb03018d9  # 通义千问 API Key
+pexels:
+  api-key: tSHiMm8b3ROKEp0IdS009yHB3W49Xq9J55WiWHCdtbJxENRfMhXHi7rX  # Pexels API Key
