@@ -17,11 +17,6 @@ public enum ImageMethodEnum {
     PEXELS("PEXELS", "Pexels 图库", false, false),
 
     /**
-     * Nano Banana AI 生图（Gemini 原生图片生成）
-     */
-    NANO_BANANA("NANO_BANANA", "Nano Banana AI 生图", true, false),
-
-    /**
      * Mermaid 流程图生成
      */
     MERMAID("MERMAID", "Mermaid 流程图生成", true, false),
@@ -104,13 +99,6 @@ public enum ImageMethodEnum {
      */
     public static ImageMethodEnum getDefaultSearchMethod() {
         return PEXELS;
-    }
-
-    /**
-     * 获取默认的 AI 生图方式
-     */
-    public static ImageMethodEnum getDefaultAiMethod() {
-        return NANO_BANANA;
     }
 
     /**

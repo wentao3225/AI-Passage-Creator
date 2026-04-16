@@ -12,6 +12,7 @@ import com.ywt.passage.exception.ThrowUtils;
 import com.ywt.passage.mapper.ArticleMapper;
 import com.ywt.passage.model.dto.article.ArticleQueryRequest;
 import com.ywt.passage.model.dto.article.ArticleState;
+import com.ywt.passage.model.enums.ArticlePhaseEnum;
 import com.ywt.passage.model.enums.ArticleStatusEnum;
 import com.ywt.passage.model.vo.ArticleVO;
 import com.ywt.passage.service.ArticleService;
@@ -129,6 +130,53 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         this.updateById(article);
         log.info("文章保存成功, taskId={}", taskId);
+    }
+
+    /**
+     * 确认标题
+     *
+     * @param taskId          任务ID
+     * @param mainTitle       选中的主标题
+     * @param subTitle        选中的副标题
+     * @param userDescription 用户补充描述
+     * @param loginUser       当前登录用户
+     */
+    @Override
+    public void confirmTitle(String taskId, String mainTitle, String subTitle, String userDescription, User loginUser) {
+
+    }
+
+    /**
+     * 确认大纲
+     *
+     * @param taskId    任务ID
+     * @param outline   用户编辑后的大纲
+     * @param loginUser 当前登录用户
+     */
+    @Override
+    public void confirmOutline(String taskId, List<ArticleState.OutlineSection> outline, User loginUser) {
+
+    }
+
+    /**
+     * 更新文章阶段
+     *
+     * @param taskId    任务ID
+     * @param phase     新的阶段枚举
+     */
+    @Override
+    public void updatePhase(String taskId, ArticlePhaseEnum phase) {
+
+    }
+
+    @Override
+    public void saveTitleOptions(String taskId, List<ArticleState.TitleOption> titleOptions) {
+
+    }
+
+    @Override
+    public List<ArticleState.OutlineSection> aiModifyOutline(String taskId, String modifySuggestion, User loginUser) {
+        return List.of();
     }
 
     /**

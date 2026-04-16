@@ -12,11 +12,11 @@ import com.ywt.passage.exception.ErrorCode;
 import com.ywt.passage.exception.ThrowUtils;
 import com.ywt.passage.model.dto.article.ArticleCreateRequest;
 import com.ywt.passage.model.dto.article.ArticleQueryRequest;
+import com.ywt.passage.model.enums.ArticleStyleEnum;
 import com.ywt.passage.model.vo.ArticleVO;
 import com.ywt.passage.service.ArticleService;
 import com.ywt.passage.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -53,13 +53,19 @@ public class ArticleController {
         ThrowUtils.throwIf(request.getTopic() == null || request.getTopic().trim().isEmpty(),
                 ErrorCode.PARAMS_ERROR, "选题不能为空");
 
+        // 校验风格参数(允许为空)
+        ThrowUtils.throwIf(!ArticleStyleEnum.isValid(request.getStyle()),
+                ErrorCode.PARAMS_ERROR, "文无效的章风格");
+
         User loginUser = userService.getLoginUser(httpServletRequest);
 
         // 创建文章任务
-        String taskId = articleService.createArticleTask(request.getTopic(), null, null, loginUser);
+        String taskId = articleService.createArticleTask(request.getTopic(), request.getStyle(),
+                null, loginUser);
 
         // 异步执行文章生成
-        articleAsyncService.executeArticleGeneration(taskId, request.getTopic());
+        articleAsyncService.executeArticleGeneration(taskId, request.getTopic(),
+                request.getStyle(),request.getEnabledImageMethods());
 
         return ResultUtils.success(taskId);
     }

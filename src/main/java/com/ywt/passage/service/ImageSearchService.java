@@ -1,25 +1,56 @@
 package com.ywt.passage.service;
 
+import com.ywt.passage.model.dto.image.ImageData;
+import com.ywt.passage.model.dto.image.ImageRequest;
 import com.ywt.passage.model.enums.ImageMethodEnum;
 
 /**
- * 图片检索服务接口
- * 抽象图片检索逻辑，便于扩展多种图片来源（如 Pexels、Unsplash、AI 生图等）
+ * 图片服务接口
+ * 抽象图片获取逻辑，便于扩展多种图片来源（如 Pexels、Unsplash、AI 生图等）
+ * 扩展新的图片服务时：
+ * 1. 实现此接口
+ * 2. 在 ImageMethodEnum 中添加对应的枚举值
+ * 3. 添加对应的配置类（如需要）
  */
 public interface ImageSearchService {
 
     /**
-     * 根据关键词检索图片
+     * 根据请求获取图片（推荐使用此方法）
      *
-     * @param keywords 搜索关键词
-     * @return 图片 URL，检索失败返回 null
+     * @param request 图片请求对象，包含 keywords、prompt 等参数
+     * @return 图片 URL，获取失败返回 null
+     */
+    default String getImage(ImageRequest request) {
+        // 默认实现：根据服务类型选择合适的参数
+        String param = request.getEffectiveParam(getMethod().isAiGenerated());
+        return searchImage(param);
+    }
+
+    /**
+     * 获取图片数据（用于统一保存到本地）
+     * 子类可重写此方法返回更高效的数据格式（如字节数据）
+     *
+     * @param request 图片请求对象
+     * @return ImageData 对象，包含图片字节或 URL
+     */
+    default ImageData getImageData(ImageRequest request) {
+        // 默认实现：通过 getImage 获取 URL，然后转换为 ImageData
+        String url = getImage(request);
+        return ImageData.fromUrl(url);
+    }
+
+    /**
+     * 根据关键词/提示词获取图片
+     *
+     * @param keywords 搜索关键词（图库检索）或生图提示词（AI 生图）
+     * @return 图片 URL，获取失败返回 null
      */
     String searchImage(String keywords);
 
     /**
-     * 获取图片检索方式
+     * 获取图片服务类型
      *
-     * @return 图片检索方式枚举
+     * @return 图片服务类型枚举
      */
     ImageMethodEnum getMethod();
 
@@ -30,4 +61,14 @@ public interface ImageSearchService {
      * @return 降级图片 URL
      */
     String getFallbackImage(int position);
+
+    /**
+     * 判断服务是否可用
+     * 子类可重写此方法进行健康检查
+     *
+     * @return 服务是否可用
+     */
+    default boolean isAvailable() {
+        return true;
+    }
 }

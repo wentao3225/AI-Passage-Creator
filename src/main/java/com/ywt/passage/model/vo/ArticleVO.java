@@ -7,6 +7,7 @@ import com.ywt.passage.utils.GsonUtils;
 import lombok.Data;
 import org.springframework.beans.BeanUtils;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.List;
 @Data
 public class ArticleVO implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
     /**
      * id

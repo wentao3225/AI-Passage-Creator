@@ -43,6 +43,37 @@
                             <p class="input-subtitle">输入选题，AI 帮你生成爆款文章</p>
                         </div>
 
+                        <!-- 文章风格选择 -->
+                        <div class="style-section">
+                            <div class="section-header">
+                                <span class="section-title">文章风格</span>
+                                <span class="section-tip">（不选择使用默认风格）</span>
+                            </div>
+
+                            <a-radio-group v-model:value="selectedStyle" class="style-group">
+                                <a-radio value="">默认</a-radio>
+                                <a-radio value="tech">科技风格</a-radio>
+                                <a-radio value="emotional">情感风格</a-radio>
+                                <a-radio value="educational">教育风格</a-radio>
+                                <a-radio value="humorous">轻松幽默</a-radio>
+                            </a-radio-group>
+                        </div>
+                        <!-- 配图方式选择 -->
+                        <div class="image-methods-section">
+                            <div class="section-header">
+                                <span class="section-title">配图方式</span>
+                                <span class="section-tip">（不选择表示支持所有方式）</span>
+                            </div>
+
+                            <a-checkbox-group v-model:value="selectedImageMethods" class="methods-group">
+                                <a-checkbox value="PEXELS">Pexels</a-checkbox>
+                                <a-checkbox value="MERMAID">Mermaid</a-checkbox>
+                                <a-checkbox value="ICONIFY">Iconify</a-checkbox>
+                                <a-checkbox value="EMOJI_PACK">表情包</a-checkbox>
+                                <a-checkbox value="SVG_DIAGRAM">SVG</a-checkbox>
+                            </a-checkbox-group>
+                        </div>
+
                         <div class="input-area">
                             <a-textarea v-model:value="topic" placeholder="请输入您想创作的文章选题，例如：2026年AI如何改变职场" :rows="6"
                                 :maxlength="500" show-count class="topic-textarea" />
@@ -254,6 +285,11 @@ const imageCount = ref(0)
 const totalImages = ref(5)
 const imageProgress = ref(0)
 
+// 状态
+const selectedStyle = ref('')  // 选中的文章风格（空字符串表示默认）
+// 状态
+const selectedImageMethods = ref<string[]>([])  // 选中的配图方式（空数组表示全部）
+
 // 文章数据
 const article = ref<Partial<API.ArticleVO>>({
     mainTitle: '',
@@ -358,7 +394,11 @@ const startCreate = async () => {
 
     try {
         // 创建任务
-        const res = await createArticle({ topic: topic.value })
+        const res = await createArticle({
+            topic: topic.value,
+            style: selectedStyle.value || undefined,
+            enabledImageMethods: selectedImageMethods.value.length > 0 ? selectedImageMethods.value : undefined,
+        })
         taskId.value = res.data.data ?? ''
 
         // 建立 SSE 连接
@@ -506,6 +546,8 @@ const viewArticle = () => {
 const resetCreate = () => {
     // 逐项重置可观察状态，避免残留历史数据
     topic.value = ''
+    selectedStyle.value = ''
+    selectedImageMethods.value = []
     isCreating.value = false
     isCompleted.value = false
     isStreaming.value = false
