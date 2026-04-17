@@ -5,6 +5,10 @@
     // Extra safety for array and object lookups, but may have false positives.
     "noUncheckedIndexedAccess": true,
 
+    // Third-party declaration files may be temporarily incompatible with cutting-edge TS versions.
+    // Skip checking .d.ts in node_modules to keep project type-check focused on app code.
+    "skipLibCheck": true,
+
     // Path mapping for cleaner imports.
     "paths": {
       "@/*": ["./src/*"]

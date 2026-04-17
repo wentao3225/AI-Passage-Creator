@@ -37,6 +37,10 @@ public class ArticleVO implements Serializable {
      */
     private String topic;
     /**
+     * 文章风格：tech/emotional/educational/humorous
+     */
+    private String style;
+    /**
      * 用户补充描述
      */
     private String userDescription;

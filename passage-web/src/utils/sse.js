@@ -1,0 +1,44 @@
+/**
+ * SSE 工具函数
+ */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://localhost:8567/api";
+/**
+ * 建立 SSE 连接
+ */
+export const connectSSE = (taskId, options) => {
+    const { onMessage, onError, onComplete } = options;
+    const eventSource = new EventSource(`${API_BASE_URL}/article/progress/${taskId}`, {
+        withCredentials: true,
+    });
+    eventSource.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+            onMessage(message);
+            // 检查是否完成
+            if (message.type === "ALL_COMPLETE" || message.type === "ERROR") {
+                eventSource.close();
+                onComplete?.();
+            }
+        }
+        catch (error) {
+            console.error("SSE 消息解析失败:", error);
+        }
+    };
+    eventSource.onerror = (error) => {
+        console.warn("SSE 连接异常，等待自动重连:", error);
+        onError?.(error);
+        // 连接被服务端或浏览器最终关闭时，再回调完成
+        if (eventSource.readyState === EventSource.CLOSED) {
+            onComplete?.();
+        }
+    };
+    return eventSource;
+};
+/**
+ * 关闭 SSE 连接
+ */
+export const closeSSE = (eventSource) => {
+    if (eventSource) {
+        eventSource.close();
+    }
+};

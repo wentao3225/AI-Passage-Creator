@@ -20,35 +20,18 @@
       <!-- 搜索筛选栏 -->
       <div class="filter-bar">
         <div class="filter-left">
-          <a-input-search
-            v-model:value="searchKeyword"
-            placeholder="搜索文章标题..."
-            style="width: 280px"
-            @search="handleSearch"
-            @change="handleSearchChange"
-            allow-clear
-            class="search-input"
-          >
+          <a-input-search v-model:value="searchKeyword" placeholder="搜索文章标题..." style="width: 280px"
+            @search="handleSearch" @change="handleSearchChange" allow-clear class="search-input">
             <template #prefix>
               <SearchOutlined class="search-icon" />
             </template>
           </a-input-search>
 
-          <a-range-picker
-            v-model:value="dateRange"
-            :placeholder="['开始日期', '结束日期']"
-            @change="handleDateChange"
-            class="date-picker"
-          />
+          <a-range-picker v-model:value="dateRange" :placeholder="['开始日期', '结束日期']" @change="handleDateChange"
+            class="date-picker" />
 
-          <a-select
-            v-model:value="statusFilter"
-            placeholder="全部状态"
-            style="width: 120px"
-            allow-clear
-            @change="handleStatusChange"
-            class="status-select"
-          >
+          <a-select v-model:value="statusFilter" placeholder="全部状态" style="width: 120px" allow-clear
+            @change="handleStatusChange" class="status-select">
             <a-select-option value="">全部状态</a-select-option>
             <a-select-option value="COMPLETED">已完成</a-select-option>
             <a-select-option value="PROCESSING">生成中</a-select-option>
@@ -64,95 +47,105 @@
 
       <!-- 表格卡片 -->
       <a-card :bordered="false" class="table-card">
-        <a-table
-          :columns="columns"
-          :data-source="dataSource"
-          :loading="loading"
-          :pagination="pagination"
-          @change="handleTableChange"
-          row-key="id"
-          class="article-table"
-        >
-          <template #bodyCell="{ column, record }">
-            <template v-if="column.key === 'title'">
-              <div class="title-cell" @click="viewArticle(record)">
-                <div class="main-title">{{ record.mainTitle || record.topic || '-' }}</div>
-                <div class="sub-title">{{ record.subTitle || '-' }}</div>
-              </div>
-            </template>
+        <div ref="tableScrollSyncRef" class="table-scroll-sync">
+          <div ref="topScrollbarRef" class="table-top-scrollbar" @scroll="handleTopScrollbarScroll">
+            <div ref="topScrollbarInnerRef" class="table-top-scrollbar-inner"></div>
+          </div>
 
-            <template v-else-if="column.key === 'status'">
-              <span :class="['status-badge', `status-${record.status?.toLowerCase()}`]">
-                <span class="status-dot"></span>
-                {{ getStatusText(record.status) }}
-              </span>
-            </template>
+          <a-table :columns="columns" :data-source="dataSource" :loading="loading" :pagination="pagination"
+            :scroll="{ x: 'max-content' }" @change="handleTableChange" row-key="id" class="article-table">
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'title'">
+                <div class="title-cell" @click="viewArticle(record)">
+                  <div class="main-title">{{ record.mainTitle || record.topic || '-' }}</div>
+                  <div class="sub-title">{{ record.subTitle || '-' }}</div>
+                </div>
+              </template>
 
-            <template v-else-if="column.key === 'createTime'">
-              <span class="time-text">{{ formatDate(record.createTime) }}</span>
-            </template>
+              <template v-else-if="column.key === 'status'">
+                <span :class="['status-badge', `status-${record.status?.toLowerCase()}`]">
+                  <span class="status-dot"></span>
+                  {{ getStatusText(record.status) }}
+                </span>
+              </template>
 
-            <template v-else-if="column.key === 'action'">
-              <div class="action-group">
-                <a-button type="link" size="small" @click="viewArticle(record)" class="action-btn view-btn">
-                  <EyeOutlined />
-                  查看
-                </a-button>
-                <a-button
-                  v-if="record.status === 'FAILED'"
-                  type="link"
-                  size="small"
-                  @click="retryArticle(record)"
-                  class="action-btn retry-btn"
-                >
-                  <RedoOutlined />
-                  重试
-                </a-button>
-                <a-button
-                  v-else
-                  type="link"
-                  size="small"
-                  @click="exportArticle(record)"
-                  class="action-btn export-btn"
-                >
-                  <DownloadOutlined />
-                  导出
-                </a-button>
-                <a-popconfirm
-                  title="确定要删除这篇文章吗?"
-                  ok-text="确定"
-                  cancel-text="取消"
-                  @confirm="deleteArticle(record)"
-                >
-                  <a-button type="link" size="small" danger class="action-btn delete-btn">
-                    <DeleteOutlined />
-                    删除
+              <template v-else-if="column.key === 'style'">
+                <span class="style-badge">{{ getStyleText(record.style) }}</span>
+              </template>
+
+              <template v-else-if="column.key === 'phase'">
+                <span :class="['phase-badge', `phase-${record.phase?.toLowerCase()}`]">
+                  {{ getPhaseText(record.phase) }}
+                </span>
+              </template>
+
+              <template v-else-if="column.key === 'imageCount'">
+                <span class="count-text">{{ record.images?.length ?? 0 }}</span>
+              </template>
+
+              <template v-else-if="column.key === 'createTime'">
+                <span class="time-text">{{ formatDate(record.createTime) }}</span>
+              </template>
+
+              <template v-else-if="column.key === 'completedTime'">
+                <span class="time-text">{{ formatDate(record.completedTime) }}</span>
+              </template>
+
+              <template v-else-if="column.key === 'errorMessage'">
+                <a-tooltip :title="record.errorMessage || '-'">
+                  <span :class="['error-text', { empty: !record.errorMessage }]">
+                    {{ record.errorMessage || '-' }}
+                  </span>
+                </a-tooltip>
+              </template>
+
+              <template v-else-if="column.key === 'action'">
+                <div class="action-group">
+                  <a-button type="link" size="small" @click="viewArticle(record)" class="action-btn view-btn">
+                    <EyeOutlined />
+                    查看
                   </a-button>
-                </a-popconfirm>
+                  <a-button v-if="record.status === 'FAILED'" type="link" size="small" @click="retryArticle(record)"
+                    class="action-btn retry-btn">
+                    <RedoOutlined />
+                    重试
+                  </a-button>
+                  <a-button v-else type="link" size="small" @click="exportArticle(record)"
+                    class="action-btn export-btn">
+                    <DownloadOutlined />
+                    导出
+                  </a-button>
+                  <a-popconfirm title="确定要删除这篇文章吗?" ok-text="确定" cancel-text="取消" @confirm="deleteArticle(record)">
+                    <a-button type="link" size="small" danger class="action-btn delete-btn">
+                      <DeleteOutlined />
+                      删除
+                    </a-button>
+                  </a-popconfirm>
+                </div>
+              </template>
+            </template>
+
+            <!-- 空状态 -->
+            <template #emptyText>
+              <div class="empty-state">
+                <FileTextOutlined class="empty-icon" />
+                <p class="empty-title">暂无文章</p>
+                <p class="empty-desc">开始创作您的第一篇文章吧</p>
+                <a-button type="primary" @click="goToCreate">
+                  <PlusOutlined />
+                  创作新文章
+                </a-button>
               </div>
             </template>
-          </template>
-
-          <!-- 空状态 -->
-          <template #emptyText>
-            <div class="empty-state">
-              <FileTextOutlined class="empty-icon" />
-              <p class="empty-title">暂无文章</p>
-              <p class="empty-desc">开始创作您的第一篇文章吧</p>
-              <a-button type="primary" @click="goToCreate">
-                <PlusOutlined />
-                创作新文章
-              </a-button>
-            </div>
-          </template>
-        </a-table>
+          </a-table>
+        </div>
       </a-card>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -168,6 +161,13 @@ import { listArticle, deleteArticle as deleteArticleApi, getArticle } from '@/ap
 import dayjs, { type Dayjs } from 'dayjs'
 
 const router = useRouter()
+
+const tableScrollSyncRef = ref<HTMLElement | null>(null)
+const topScrollbarRef = ref<HTMLElement | null>(null)
+const topScrollbarInnerRef = ref<HTMLElement | null>(null)
+let tableHorizontalScroller: HTMLElement | null = null
+let isSyncingFromTop = false
+let isSyncingFromTable = false
 
 // 搜索筛选
 const searchKeyword = ref('')
@@ -193,14 +193,40 @@ const columns = [
     width: 110,
   },
   {
+    title: '风格',
+    key: 'style',
+    width: 110,
+  },
+  {
+    title: '阶段',
+    key: 'phase',
+    width: 130,
+  },
+  {
+    title: '配图数',
+    key: 'imageCount',
+    width: 90,
+  },
+  {
     title: '创建时间',
     key: 'createTime',
     width: 160,
   },
   {
+    title: '完成时间',
+    key: 'completedTime',
+    width: 160,
+  },
+  {
+    title: '错误消息',
+    key: 'errorMessage',
+    width: 240,
+  },
+  {
     title: '操作',
     key: 'action',
-    width: 200,
+    width: 260,
+    fixed: 'right' as const,
   },
 ]
 
@@ -267,7 +293,76 @@ const loadData = async () => {
   } finally {
     // 请求结束后关闭加载态
     loading.value = false
+    syncTableScrollbars()
   }
+}
+
+const getHorizontalScroller = () => {
+  if (!tableScrollSyncRef.value) {
+    return null
+  }
+
+  const candidates = tableScrollSyncRef.value.querySelectorAll<HTMLElement>(
+    '.ant-table-content, .ant-table-body'
+  )
+
+  for (const el of candidates) {
+    if (el.scrollWidth > el.clientWidth) {
+      return el
+    }
+  }
+
+  return candidates[0] ?? null
+}
+
+const handleTableScrollerScroll = () => {
+  if (!tableHorizontalScroller || !topScrollbarRef.value) {
+    return
+  }
+  if (isSyncingFromTop) {
+    return
+  }
+
+  isSyncingFromTable = true
+  topScrollbarRef.value.scrollLeft = tableHorizontalScroller.scrollLeft
+  isSyncingFromTable = false
+}
+
+const handleTopScrollbarScroll = () => {
+  if (!tableHorizontalScroller || !topScrollbarRef.value) {
+    return
+  }
+  if (isSyncingFromTable) {
+    return
+  }
+
+  isSyncingFromTop = true
+  tableHorizontalScroller.scrollLeft = topScrollbarRef.value.scrollLeft
+  isSyncingFromTop = false
+}
+
+const syncTableScrollbars = () => {
+  nextTick(() => {
+    const nextScroller = getHorizontalScroller()
+
+    if (tableHorizontalScroller && tableHorizontalScroller !== nextScroller) {
+      tableHorizontalScroller.removeEventListener('scroll', handleTableScrollerScroll)
+    }
+
+    tableHorizontalScroller = nextScroller
+
+    if (!tableHorizontalScroller || !topScrollbarRef.value || !topScrollbarInnerRef.value) {
+      return
+    }
+
+    tableHorizontalScroller.removeEventListener('scroll', handleTableScrollerScroll)
+    tableHorizontalScroller.addEventListener('scroll', handleTableScrollerScroll, { passive: true })
+
+    topScrollbarInnerRef.value.style.width = `${tableHorizontalScroller.scrollWidth}px`
+    const hasHorizontalOverflow = tableHorizontalScroller.scrollWidth > tableHorizontalScroller.clientWidth + 1
+    topScrollbarRef.value.style.display = hasHorizontalOverflow ? 'block' : 'none'
+    topScrollbarRef.value.scrollLeft = tableHorizontalScroller.scrollLeft
+  })
 }
 
 // 搜索处理
@@ -400,7 +495,7 @@ const retryArticle = (record: API.ArticleVO) => {
         path: '/create',
         query: {
           topic: record.topic || '',
-          style: record.userDescription || ''
+          style: record.style || ''
         }
       })
     }
@@ -420,7 +515,10 @@ const goToCreate = () => {
 /**
  * 统一列表时间展示格式。
  */
-const formatDate = (date: string) => {
+const formatDate = (date?: string) => {
+  if (!date) {
+    return '-'
+  }
   // 列表页使用分钟级展示
   return dayjs(date).format('YYYY-MM-DD HH:mm')
 }
@@ -440,9 +538,53 @@ const getStatusText = (status: string) => {
   return textMap[status] || status
 }
 
+// 获取风格文本
+/**
+ * 将风格编码转换为中文标签。
+ */
+const getStyleText = (style?: string) => {
+  const textMap: Record<string, string> = {
+    tech: '科技',
+    emotional: '情感',
+    educational: '教育',
+    humorous: '幽默',
+  }
+  if (!style) {
+    return '默认'
+  }
+  return textMap[style] || style
+}
+
+// 获取阶段文本
+/**
+ * 将阶段编码转换为中文标签。
+ */
+const getPhaseText = (phase?: string) => {
+  const textMap: Record<string, string> = {
+    PENDING: '等待中',
+    TITLE_GENERATING: '生成标题',
+    TITLE_SELECTING: '选择标题',
+    OUTLINE_GENERATING: '生成大纲',
+    OUTLINE_EDITING: '编辑大纲',
+    CONTENT_GENERATING: '生成正文',
+  }
+  if (!phase) {
+    return '-'
+  }
+  return textMap[phase] || phase
+}
+
 onMounted(() => {
   // 首次进入页面自动加载数据
   loadData()
+  window.addEventListener('resize', syncTableScrollbars)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncTableScrollbars)
+  if (tableHorizontalScroller) {
+    tableHorizontalScroller.removeEventListener('scroll', handleTableScrollerScroll)
+  }
 })
 </script>
 

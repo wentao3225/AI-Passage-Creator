@@ -5,6 +5,6 @@
 import * as userController from "./userController";
 import * as articleController from "./articleController";
 export default {
-  userController,
-  articleController,
+    userController,
+    articleController,
 };

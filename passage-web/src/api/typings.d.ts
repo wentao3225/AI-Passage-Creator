@@ -1,4 +1,21 @@
 declare namespace API {
+  type ArticleAiModifyOutlineRequest = {
+    taskId?: string;
+    modifySuggestion?: string;
+  };
+
+  type ArticleConfirmOutlineRequest = {
+    taskId?: string;
+    outline?: OutlineSection[];
+  };
+
+  type ArticleConfirmTitleRequest = {
+    taskId?: string;
+    selectedMainTitle?: string;
+    selectedSubTitle?: string;
+    userDescription?: string;
+  };
+
   type ArticleCreateRequest = {
     topic?: string;
     style?: string;
@@ -19,6 +36,7 @@ declare namespace API {
     taskId?: string;
     userId?: number;
     topic?: string;
+    style?: string;
     userDescription?: string;
     mainTitle?: string;
     subTitle?: string;
@@ -47,6 +65,12 @@ declare namespace API {
     message?: string;
   };
 
+  type BaseResponseListOutlineSection = {
+    code?: number;
+    data?: OutlineSection[];
+    message?: string;
+  };
+
   type BaseResponseLoginUserVO = {
     code?: number;
     data?: LoginUserVO;
@@ -59,21 +83,27 @@ declare namespace API {
     message?: string;
   };
 
-  type BaseResponsePageUserManageVO = {
-    code?: number;
-    data?: PageUserManageVO;
-    message?: string;
-  };
-
   type BaseResponsePageArticleVO = {
     code?: number;
     data?: PageArticleVO;
     message?: string;
   };
 
+  type BaseResponsePageUserManageVO = {
+    code?: number;
+    data?: PageUserManageVO;
+    message?: string;
+  };
+
   type BaseResponseString = {
     code?: number;
     data?: string;
+    message?: string;
+  };
+
+  type BaseResponseVoid = {
+    code?: number;
+    data?: Record<string, any>;
     message?: string;
   };
 
@@ -115,6 +145,12 @@ declare namespace API {
     points?: string[];
   };
 
+  type OutlineSection = {
+    section?: number;
+    title?: string;
+    points?: string[];
+  };
+
   type PageArticleVO = {
     records?: ArticleVO[];
     pageNumber?: number;
@@ -151,6 +187,11 @@ declare namespace API {
     userRole?: string;
   };
 
+  type UserLoginRequest = {
+    userAccount?: string;
+    userPassword?: string;
+  };
+
   type UserManageVO = {
     id?: number;
     userAccount?: string;
@@ -172,6 +213,12 @@ declare namespace API {
     userRole?: string;
   };
 
+  type UserRegisterRequest = {
+    userAccount?: string;
+    userPassword?: string;
+    checkPassword?: string;
+  };
+
   type UserUpdateRequest = {
     id?: number;
     userAccount?: string;
@@ -179,16 +226,5 @@ declare namespace API {
     userAvatar?: string;
     userProfile?: string;
     userRole?: string;
-  };
-
-  type UserLoginRequest = {
-    userAccount?: string;
-    userPassword?: string;
-  };
-
-  type UserRegisterRequest = {
-    userAccount?: string;
-    userPassword?: string;
-    checkPassword?: string;
   };
 }

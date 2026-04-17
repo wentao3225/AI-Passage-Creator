@@ -14,6 +14,9 @@
     "module": "preserve",
     "moduleResolution": "bundler",
 
+    // Ignore type issues from external declaration files during project type-check.
+    "skipLibCheck": true,
+
     // Include Node.js types and avoid accidentally including other `@types/*` packages.
     "types": ["node"],
 

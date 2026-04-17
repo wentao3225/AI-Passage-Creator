@@ -1,9 +1,11 @@
 package com.ywt.passage.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import com.google.gson.reflect.TypeToken;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.ywt.passage.core.service.ArticleAgentService;
 import com.ywt.passage.entity.Article;
 import com.ywt.passage.entity.User;
 import com.ywt.passage.exception.BusinessException;
@@ -12,23 +14,30 @@ import com.ywt.passage.exception.ThrowUtils;
 import com.ywt.passage.mapper.ArticleMapper;
 import com.ywt.passage.model.dto.article.ArticleQueryRequest;
 import com.ywt.passage.model.dto.article.ArticleState;
+import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.enums.ArticlePhaseEnum;
 import com.ywt.passage.model.enums.ArticleStatusEnum;
 import com.ywt.passage.model.vo.ArticleVO;
 import com.ywt.passage.service.ArticleService;
 import com.ywt.passage.utils.GsonUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
 import static com.ywt.passage.constant.UserConstant.ADMIN_ROLE;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService {
+
+    private final ArticleAgentService articleAgentService;
 
     /**
      * 创建文章任务
@@ -49,6 +58,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         article.setTaskId(taskId);
         article.setUserId(loginUser.getId());
         article.setTopic(topic);
+        article.setStyle(StringUtils.hasText(style) ? style : null);
+        article.setEnabledImageMethods(normalizeEnabledMethods(enabledImageMethods));
         article.setStatus(ArticleStatusEnum.PENDING.getValue());
         article.setCreateTime(LocalDateTime.now());
 
@@ -56,6 +67,30 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
         log.info("文章任务已创建, taskId={}, userId={}", taskId, loginUser.getId());
         return taskId;
+    }
+
+    /**
+     * 规范化并序列化允许的配图方式。
+     */
+    private String normalizeEnabledMethods(List<String> enabledImageMethods) {
+        if (enabledImageMethods == null || enabledImageMethods.isEmpty()) {
+            return null;
+        }
+
+        List<String> validMethods = enabledImageMethods.stream()
+                .map(String::trim)
+                .filter(StringUtils::hasText)
+            .map(ImageMethodEnum::getByValue)
+            .filter(method -> method != null && !method.isFallback())
+            .map(ImageMethodEnum::getValue)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (validMethods.isEmpty()) {
+            return null;
+        }
+
+        return GsonUtils.toJson(validMethods);
     }
 
     /**
@@ -143,7 +178,25 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
      */
     @Override
     public void confirmTitle(String taskId, String mainTitle, String subTitle, String userDescription, User loginUser) {
+        // 校验存在性和权限
+        Article article = getByTaskId(taskId);
+        ThrowUtils.throwIf(article == null, ErrorCode.NOT_FOUND_ERROR, "文章记录不存在");
+        checkArticlePermission(article, loginUser);
 
+        // 校验当前阶段（必须是TITLE_SELECTING）
+        ArticlePhaseEnum currentPhase = ArticlePhaseEnum.getByValue(article.getPhase());
+        ThrowUtils.throwIf(!currentPhase.equals(ArticlePhaseEnum.TITLE_SELECTING),
+                ErrorCode.OPERATION_ERROR, "当前阶段不允许此操作");
+
+        // 保存用户选择的标题和用户描述
+        article.setMainTitle(mainTitle);
+        article.setSubTitle(subTitle);
+        article.setUserDescription(userDescription);
+        article.setPhase(ArticlePhaseEnum.OUTLINE_GENERATING.getValue());
+
+        this.updateById(article);
+        log.info("文章标题已确认, taskId={}, mainTitle={}, subTitle={}, userDescription={}",
+                taskId, mainTitle, subTitle, userDescription);
     }
 
     /**
@@ -155,28 +208,98 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
      */
     @Override
     public void confirmOutline(String taskId, List<ArticleState.OutlineSection> outline, User loginUser) {
+        // 校验存在性和权限
+        Article article = getByTaskId(taskId);
+        ThrowUtils.throwIf(article == null, ErrorCode.NOT_FOUND_ERROR, "文章记录不存在");
+        checkArticlePermission(article, loginUser);
 
+        // 校验当前阶段（必须是OUTLINE_EDITING）
+        ArticlePhaseEnum currentPhase = ArticlePhaseEnum.getByValue(article.getPhase());
+        ThrowUtils.throwIf(!currentPhase.equals(ArticlePhaseEnum.OUTLINE_EDITING),
+                ErrorCode.OPERATION_ERROR, "当前阶段不允许此操作");
+
+        // 保存用户修改后的大纲
+        article.setOutline(GsonUtils.toJson(outline));
+        article.setPhase(ArticlePhaseEnum.CONTENT_GENERATING.getValue());
+
+        this.updateById(article);
+        log.info("文章大纲已确认, taskId={}, outline={}", taskId, outline);
     }
 
     /**
      * 更新文章阶段
      *
-     * @param taskId    任务ID
-     * @param phase     新的阶段枚举
+     * @param taskId 任务ID
+     * @param phase  新的阶段枚举
      */
     @Override
     public void updatePhase(String taskId, ArticlePhaseEnum phase) {
+        Article article = getByTaskId(taskId);
+        if (article == null) {
+            log.error("文章记录不存在, taskId={}", taskId);
+            return;
+        }
 
+        article.setPhase(phase.getValue());
+        this.updateById(article);
+        log.info("文章阶段已更新, taskId={}, phase={}", taskId, phase.getValue());
     }
 
+    /**
+     * 保存标题选项
+     *
+     * @param taskId       任务ID
+     * @param titleOptions 标题选项
+     */
     @Override
     public void saveTitleOptions(String taskId, List<ArticleState.TitleOption> titleOptions) {
-
+        Article article = getByTaskId(taskId);
+        if (article == null) {
+            log.error("文章记录不存在, taskId={}", taskId);
+            return;
+        }
+        article.setTitleOptions(GsonUtils.toJson(titleOptions));
+        this.updateById(article);
+        log.info("文章标题选项已保存, taskId={}, titleOptions={}", taskId, titleOptions);
     }
 
+    /**
+     * AI 修改大纲
+     *
+     * @param taskId           任务ID
+     * @param modifySuggestion 修改建议
+     * @param loginUser        当前登录用户
+     * @return 修改后的大纲
+     */
     @Override
     public List<ArticleState.OutlineSection> aiModifyOutline(String taskId, String modifySuggestion, User loginUser) {
-        return List.of();
+        // 校验存在性和权限
+        Article article = getByTaskId(taskId);
+        ThrowUtils.throwIf(article == null, ErrorCode.NOT_FOUND_ERROR, "文章记录不存在");
+        checkArticlePermission(article, loginUser);
+
+        // 校验当前阶段（必须是OUTLINE_EDITING）
+        ArticlePhaseEnum currentPhase = ArticlePhaseEnum.getByValue(article.getPhase());
+        ThrowUtils.throwIf(!currentPhase.equals(ArticlePhaseEnum.OUTLINE_EDITING),
+                ErrorCode.OPERATION_ERROR, "当前阶段不允许此操作");
+
+        // 读取当前大纲
+        List<ArticleState.OutlineSection> currentOutline = GsonUtils
+                .fromJson(article.getOutline(), new TypeToken<>() {
+                });
+
+        // 调用 AI 修改大纲
+        List<ArticleState.OutlineSection> modifyOutline = articleAgentService.aiModifyOutline(
+                article.getMainTitle(),
+                article.getSubTitle(),
+                currentOutline,
+                modifySuggestion);
+
+        // 保存修改后的大纲
+        article.setOutline(GsonUtils.toJson(modifyOutline));
+        this.updateById(article);
+        log.info("文章大纲已修改, taskId={}, modifySuggestion={}, modifyOutline={}", taskId, modifySuggestion, modifyOutline);
+        return modifyOutline;
     }
 
     /**

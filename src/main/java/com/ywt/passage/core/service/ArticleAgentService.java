@@ -2,6 +2,7 @@ package com.ywt.passage.core.service;
 
 import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatModel;
 import com.google.gson.JsonSyntaxException;
+import com.google.gson.reflect.TypeToken;
 import com.ywt.passage.constant.PromptConstant;
 import com.ywt.passage.model.dto.article.ArticleState;
 import com.ywt.passage.model.dto.image.ImageRequest;
@@ -10,7 +11,6 @@ import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import com.ywt.passage.service.ImageServiceStrategy;
 import com.ywt.passage.utils.GsonUtils;
-import com.ywt.passage.utils.LlmJsonUtils;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -21,7 +21,9 @@ import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -45,88 +47,163 @@ public class ArticleAgentService {
      * @param state         文章状态
      * @param streamHandler 流式输出处理器
      */
-    public void executeArticleGeneration(ArticleState state, Consumer<String> streamHandler) {
-        try {
-            // 智能体1：生成标题
-            log.info("智能体1：开始生成标题, taskId={}", state.getTaskId());
-            agent1GenerateTitle(state);
-            streamHandler.accept(SseMessageTypeEnum.AGENT1_COMPLETE.getValue());
+//    public void executeArticleGeneration(ArticleState state, Consumer<String> streamHandler) {
+//        try {
+//            // 智能体1：生成标题
+//            log.info("智能体1：开始生成标题, taskId={}", state.getTaskId());
+//            agent1GenerateTitle(state);
+//            streamHandler.accept(SseMessageTypeEnum.AGENT1_COMPLETE.getValue());
+//
+//            // 智能体2：生成大纲（流式输出）
+//            log.info("智能体2：开始生成大纲, taskId={}", state.getTaskId());
+//            agent2GenerateOutline(state, streamHandler);
+//            streamHandler.accept(SseMessageTypeEnum.AGENT2_COMPLETE.getValue());
+//
+//            // 智能体3：生成正文（流式输出）
+//            log.info("智能体3：开始生成正文, taskId={}", state.getTaskId());
+//            agent3GenerateContent(state, streamHandler);
+//            streamHandler.accept(SseMessageTypeEnum.AGENT3_COMPLETE.getValue());
+//
+//            // 智能体4：分析配图需求
+//            log.info("智能体4：开始分析配图需求, taskId={}", state.getTaskId());
+//            agent4AnalyzeImageRequirements(state);
+//            streamHandler.accept(SseMessageTypeEnum.AGENT4_COMPLETE.getValue());
+//
+//            // 智能体5：生成配图
+//            log.info("智能体5：开始生成配图, taskId={}", state.getTaskId());
+//            agent5GenerateImages(state, streamHandler);
+//            streamHandler.accept(SseMessageTypeEnum.AGENT5_COMPLETE.getValue());
+//
+//            // 图文合成：将配图插入正文
+//            log.info("开始图文合成, taskId={}", state.getTaskId());
+//            mergeImagesIntoContent(state);
+//            streamHandler.accept(SseMessageTypeEnum.MERGE_COMPLETE.getValue());
+//
+//            log.info("文章生成完成, taskId={}", state.getTaskId());
+//        } catch (Exception e) {
+//            log.error("文章生成失败, taskId={}", state.getTaskId(), e);
+//            throw new RuntimeException("文章生成失败: " + e.getMessage(), e);
+//        }
+//    }
 
+    /**
+     * 阶段1：生成标题方案（3-5个）
+     *
+     * @param state         文章状态
+     * @param streamHandler 流式输出处理器
+     */
+    public void executePhase1_GenerateTitles(ArticleState state, Consumer<String> streamHandler) {
+        try {
+            // 智能体1：生成标题方案
+            log.info("阶段1：开始生成标题方案, taskId={}", state.getTaskId());
+            agent1GenerateTitleOptions(state);
+            streamHandler.accept(SseMessageTypeEnum.AGENT1_COMPLETE.getValue());
+            log.info("阶段1：标题方案生成完成, taskId={}, optionsCount={}",
+                    state.getTaskId(), state.getTitleOptions().size());
+        } catch (Exception e) {
+            log.error("阶段1：标题方案生成失败, taskId={}", state.getTaskId(), e);
+            throw new RuntimeException("标题方案生成失败: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 阶段2：生成大纲（用户选择标题后）
+     *
+     * @param state         文章状态
+     * @param streamHandler 流式输出处理器
+     */
+    public void executePhase2_GenerateOutline(ArticleState state, Consumer<String> streamHandler) {
+        try {
             // 智能体2：生成大纲（流式输出）
-            log.info("智能体2：开始生成大纲, taskId={}", state.getTaskId());
+            log.info("阶段2：开始生成大纲, taskId={}", state.getTaskId());
             agent2GenerateOutline(state, streamHandler);
             streamHandler.accept(SseMessageTypeEnum.AGENT2_COMPLETE.getValue());
+            log.info("阶段2：大纲生成完成, taskId={}", state.getTaskId());
+        } catch (Exception e) {
+            log.error("阶段2：大纲生成失败, taskId={}", state.getTaskId(), e);
+            throw new RuntimeException("大纲生成失败: " + e.getMessage(), e);
+        }
+    }
 
+    /**
+     * 阶段3：生成正文+配图（用户确认大纲后）
+     *
+     * @param state         文章状态
+     * @param streamHandler 流式输出处理器
+     */
+    public void executePhase3_GenerateContent(ArticleState state, Consumer<String> streamHandler) {
+        try {
             // 智能体3：生成正文（流式输出）
-            log.info("智能体3：开始生成正文, taskId={}", state.getTaskId());
+            log.info("阶段3：开始生成正文, taskId={}", state.getTaskId());
             agent3GenerateContent(state, streamHandler);
             streamHandler.accept(SseMessageTypeEnum.AGENT3_COMPLETE.getValue());
 
             // 智能体4：分析配图需求
-            log.info("智能体4：开始分析配图需求, taskId={}", state.getTaskId());
+            log.info("阶段3：开始分析配图需求, taskId={}", state.getTaskId());
             agent4AnalyzeImageRequirements(state);
             streamHandler.accept(SseMessageTypeEnum.AGENT4_COMPLETE.getValue());
 
             // 智能体5：生成配图
-            log.info("智能体5：开始生成配图, taskId={}", state.getTaskId());
+            log.info("阶段3：开始生成配图, taskId={}", state.getTaskId());
             agent5GenerateImages(state, streamHandler);
             streamHandler.accept(SseMessageTypeEnum.AGENT5_COMPLETE.getValue());
 
             // 图文合成：将配图插入正文
-            log.info("开始图文合成, taskId={}", state.getTaskId());
+            log.info("阶段3：开始图文合成, taskId={}", state.getTaskId());
             mergeImagesIntoContent(state);
             streamHandler.accept(SseMessageTypeEnum.MERGE_COMPLETE.getValue());
 
-            log.info("文章生成完成, taskId={}", state.getTaskId());
+            log.info("阶段3：正文生成完成, taskId={}", state.getTaskId());
         } catch (Exception e) {
-            log.error("文章生成失败, taskId={}", state.getTaskId(), e);
-            throw new RuntimeException("文章生成失败: " + e.getMessage(), e);
+            log.error("阶段3：正文生成失败, taskId={}", state.getTaskId(), e);
+            throw new RuntimeException("正文生成失败: " + e.getMessage(), e);
         }
     }
 
 
     /**
-     * 智能体1：生成标题
+     * 智能体1：生成标题方案（3-5个）
      */
-    private void agent1GenerateTitle(ArticleState state) {
+    private void agent1GenerateTitleOptions(ArticleState state) {
         String prompt = PromptConstant.AGENT1_TITLE_PROMPT
                 .replace("{topic}", state.getTopic())
                 + getStylePrompt(state.getStyle());
 
-        // 调用 LLM
         String content = callLlm(prompt);
-        ArticleState.TitleResult titleResult = parseJsonResponse(
+        List<ArticleState.TitleOption> titleOptions = parseJsonListResponse(
                 content,
-                ArticleState.TitleResult.class,
-                "标题",
-                result -> result != null
-                        && StringUtils.hasText(result.getMainTitle())
-                        && StringUtils.hasText(result.getSubTitle())
+                new TypeToken<>() {
+                },
+                "标题方案"
         );
-        state.setTitle(titleResult);
-        log.info("智能体1：标题生成成功, mainTitle={}", titleResult.getMainTitle());
+        state.setTitleOptions(titleOptions);
+        log.info("智能体1：标题方案生成成功, optionsCount={}", titleOptions.size());
     }
+
 
     /**
      * 智能体2：生成大纲（流式输出）
      */
     private void agent2GenerateOutline(ArticleState state, Consumer<String> streamHandler) {
+        // 构建 prompt，根据是否有用户补充描述插入对应部分
+        String descriptionSection = "";
+        if (state.getUserDescription() != null && !state.getUserDescription().trim().isEmpty()) {
+            descriptionSection = PromptConstant.AGENT2_DESCRIPTION_SECTION
+                    .replace("{userDescription}", state.getUserDescription());
+        }
+
         String prompt = PromptConstant.AGENT2_OUTLINE_PROMPT
                 .replace("{mainTitle}", state.getTitle().getMainTitle())
                 .replace("{subTitle}", state.getTitle().getSubTitle())
+                .replace("{descriptionSection}", descriptionSection)
                 + getStylePrompt(state.getStyle());
 
-        // 调用 LLM（流式输出）
         String content = callLlmWithStreaming(prompt, streamHandler, SseMessageTypeEnum.AGENT2_STREAMING);
-        ArticleState.OutlineResult outlineResult = parseJsonResponse(
-                content,
-                ArticleState.OutlineResult.class,
-                "大纲",
-                this::isValidOutlineResult
-        );
+        ArticleState.OutlineResult outlineResult = parseJsonResponse(content, ArticleState.OutlineResult.class, "大纲");
         state.setOutline(outlineResult);
         log.info("智能体2：大纲生成成功, sections={}", outlineResult.getSections().size());
     }
+
 
     /**
      * 智能体3：生成正文（流式输出）
@@ -147,8 +224,10 @@ public class ArticleAgentService {
      * 智能体4：分析配图需求（在正文中插入占位符）
      */
     private void agent4AnalyzeImageRequirements(ArticleState state) {
+        List<ImageMethodEnum> allowedMethods = resolveAllowedImageMethods(state.getEnabledImageMethods());
+
         // 构建可用配图方式说明
-        String availableMethods = buildAvailableMethodsDescription(state.getEnabledImageMethods());
+        String availableMethods = buildAvailableMethodsDescription(allowedMethods);
 
         String prompt = PromptConstant.AGENT4_IMAGE_REQUIREMENTS_PROMPT
                 .replace("{mainTitle}", state.getTitle().getMainTitle())
@@ -159,9 +238,11 @@ public class ArticleAgentService {
         ArticleState.Agent4Result agent4Result = parseJsonResponse(
                 content,
                 ArticleState.Agent4Result.class,
-                "配图需求",
-                this::isValidAgent4Result
+                "配图需求"
         );
+
+        // 二次约束：即使模型越权返回了其他来源，也强制收敛到用户允许的方式。
+        enforceAllowedImageRequirements(agent4Result.getImageRequirements(), allowedMethods);
 
         // 更新正文为包含占位符的版本
         state.setContent(agent4Result.getContentWithPlaceholders());
@@ -175,9 +256,11 @@ public class ArticleAgentService {
      */
     private void agent5GenerateImages(ArticleState state, Consumer<String> streamHandler) {
         List<ArticleState.ImageResult> imageResults = new ArrayList<>();
+        List<ImageMethodEnum> allowedMethods = resolveAllowedImageMethods(state.getEnabledImageMethods());
 
         for (ArticleState.ImageRequirement requirement : state.getImageRequirements()) {
-            String imageSource = requirement.getImageSource();
+            ImageMethodEnum finalMethod = ensureRequirementUsesAllowedMethod(requirement, allowedMethods);
+            String imageSource = finalMethod.getValue();
             log.info("智能体5：开始获取配图, position={}, imageSource={}, keywords={}",
                     requirement.getPosition(), imageSource, requirement.getKeywords());
 
@@ -214,7 +297,7 @@ public class ArticleAgentService {
     /**
      * 构建可用配图方式说明
      */
-    private String buildAvailableMethodsDescription(List<String> enabledMethods) {
+    private String buildAvailableMethodsDescription(List<ImageMethodEnum> enabledMethods) {
         // 如果为空或 null，表示支持所有方式
         if (enabledMethods == null || enabledMethods.isEmpty()) {
             return getAllMethodsDescription();
@@ -222,15 +305,117 @@ public class ArticleAgentService {
 
         // 只描述允许的方式
         StringBuilder sb = new StringBuilder();
+        for (ImageMethodEnum methodEnum : enabledMethods) {
+            sb.append("   - ").append(methodEnum.getValue())
+                    .append(": ").append(getMethodUsageDescription(methodEnum))
+                    .append("\n");
+        }
+
+        if (sb.isEmpty()) {
+            return getAllMethodsDescription();
+        }
+
+        return sb.toString();
+    }
+
+    private List<ImageMethodEnum> resolveAllowedImageMethods(List<String> enabledMethods) {
+        if (enabledMethods == null || enabledMethods.isEmpty()) {
+            return List.of();
+        }
+
+        Set<ImageMethodEnum> allowedSet = new LinkedHashSet<>();
         for (String method : enabledMethods) {
             ImageMethodEnum methodEnum = ImageMethodEnum.getByValue(method);
             if (methodEnum != null && !methodEnum.isFallback()) {
-                sb.append("   - ").append(methodEnum.getValue())
-                        .append(": ").append(getMethodUsageDescription(methodEnum))
-                        .append("\n");
+                allowedSet.add(methodEnum);
             }
         }
-        return sb.toString();
+        return new ArrayList<>(allowedSet);
+    }
+
+    private void enforceAllowedImageRequirements(List<ArticleState.ImageRequirement> requirements,
+                                                 List<ImageMethodEnum> allowedMethods) {
+        if (requirements == null || requirements.isEmpty() || allowedMethods == null || allowedMethods.isEmpty()) {
+            return;
+        }
+
+        for (ArticleState.ImageRequirement requirement : requirements) {
+            ensureRequirementUsesAllowedMethod(requirement, allowedMethods);
+        }
+    }
+
+    private ImageMethodEnum ensureRequirementUsesAllowedMethod(ArticleState.ImageRequirement requirement,
+                                                               List<ImageMethodEnum> allowedMethods) {
+        ImageMethodEnum requestedMethod = ImageMethodEnum.getByValue(requirement.getImageSource());
+
+        if (allowedMethods == null || allowedMethods.isEmpty()) {
+            ImageMethodEnum fallbackRequested = requestedMethod != null ? requestedMethod : ImageMethodEnum.getDefaultSearchMethod();
+            requirement.setImageSource(fallbackRequested.getValue());
+            fillMissingRequestFields(requirement, fallbackRequested);
+            return fallbackRequested;
+        }
+
+        if (requestedMethod != null && allowedMethods.contains(requestedMethod)) {
+            fillMissingRequestFields(requirement, requestedMethod);
+            return requestedMethod;
+        }
+
+        ImageMethodEnum targetMethod = pickPreferredAllowedMethod(requirement, allowedMethods);
+        log.warn("配图来源不在允许列表内, requested={}, replaced={}, position={}",
+                requirement.getImageSource(), targetMethod.getValue(), requirement.getPosition());
+
+        requirement.setImageSource(targetMethod.getValue());
+        fillMissingRequestFields(requirement, targetMethod);
+        return targetMethod;
+    }
+
+    private ImageMethodEnum pickPreferredAllowedMethod(ArticleState.ImageRequirement requirement,
+                                                       List<ImageMethodEnum> allowedMethods) {
+        boolean hasPrompt = StringUtils.hasText(requirement.getPrompt());
+        boolean hasKeywords = StringUtils.hasText(requirement.getKeywords());
+
+        if (hasPrompt) {
+            for (ImageMethodEnum method : allowedMethods) {
+                if (method.isAiGenerated()) {
+                    return method;
+                }
+            }
+        }
+
+        if (hasKeywords) {
+            for (ImageMethodEnum method : allowedMethods) {
+                if (!method.isAiGenerated()) {
+                    return method;
+                }
+            }
+        }
+
+        return allowedMethods.get(0);
+    }
+
+    private void fillMissingRequestFields(ArticleState.ImageRequirement requirement, ImageMethodEnum method) {
+        String fallbackText = StringUtils.hasText(requirement.getSectionTitle())
+                ? requirement.getSectionTitle()
+                : (StringUtils.hasText(requirement.getType()) ? requirement.getType() : "文章配图");
+
+        if (method.isAiGenerated()) {
+            if (!StringUtils.hasText(requirement.getPrompt())) {
+                requirement.setPrompt("根据文章语境生成" + fallbackText + "相关示意图");
+            }
+            if (!StringUtils.hasText(requirement.getKeywords())) {
+                requirement.setKeywords("");
+            }
+            return;
+        }
+
+        if (!StringUtils.hasText(requirement.getKeywords())) {
+            String defaultKeyword = method == ImageMethodEnum.EMOJI_PACK ? fallbackText + " 表情包" : fallbackText;
+            requirement.setKeywords(defaultKeyword);
+        }
+
+        if (!StringUtils.hasText(requirement.getPrompt())) {
+            requirement.setPrompt("");
+        }
     }
 
     /**
@@ -320,34 +505,127 @@ public class ArticleAgentService {
     }
 
     /**
+     * AI 修改大纲
+     *
+     * @param mainTitle        主标题
+     * @param subTitle         副标题
+     * @param currentOutline   当前大纲
+     * @param modifySuggestion 用户修改建议
+     * @return 修改后的大纲
+     */
+    public List<ArticleState.OutlineSection> aiModifyOutline(String mainTitle, String subTitle,
+                                                             List<ArticleState.OutlineSection> currentOutline,
+                                                             String modifySuggestion) {
+        String currentOutlineJson = GsonUtils.toJson(currentOutline);
+
+        String prompt = PromptConstant.AI_MODIFY_OUTLINE_PROMPT
+                .replace("{mainTitle}", mainTitle)
+                .replace("{subTitle}", subTitle)
+                .replace("{currentOutline}", currentOutlineJson)
+                .replace("{modifySuggestion}", modifySuggestion);
+
+        String content = callLlm(prompt);
+        ArticleState.OutlineResult outlineResult = parseJsonResponse(content, ArticleState.OutlineResult.class, "修改后的大纲");
+
+        log.info("AI修改大纲成功, sectionsCount={}", outlineResult.getSections().size());
+        return outlineResult.getSections();
+    }
+
+
+    /**
      * 解析 JSON 响应
      */
-    private <T> T parseJsonResponse(String content, Class<T> clazz, String name, Predicate<T> validator) {
-        String normalizedContent = LlmJsonUtils.normalizeJsonContent(content);
-        String repairedContent = LlmJsonUtils.repairJsonContent(normalizedContent);
+    private <T> T parseJsonResponse(String content, Class<T> clazz, String name) {
+        Predicate<T> validator = buildValidator(clazz);
 
-        T parsedResult = tryParseJson(repairedContent, clazz, validator);
+        T parsedResult = tryParseJson(content, clazz, validator);
         if (parsedResult != null) {
-            if (!repairedContent.equals(normalizedContent)) {
-                log.warn("{}存在轻微 JSON 语法问题，已自动修复后解析", name);
-            }
             return parsedResult;
         }
 
-        String llmRepairedContent = repairJsonWithLlm(repairedContent, name);
-        String normalizedLlmRepairedContent = LlmJsonUtils.repairJsonContent(
-                LlmJsonUtils.normalizeJsonContent(llmRepairedContent)
-        );
-
-        parsedResult = tryParseJson(normalizedLlmRepairedContent, clazz, validator);
+        String normalized = normalizeJsonContent(content);
+        parsedResult = tryParseJson(normalized, clazz, validator);
         if (parsedResult != null) {
-            log.warn("{}原始 JSON 非法，已通过 LLM 修复后解析成功", name);
             return parsedResult;
         }
 
-        log.error("{}解析失败, originalContent={}, normalizedContent={}, repairedContent={}, llmRepairedContent={}",
-                name, content, normalizedContent, repairedContent, normalizedLlmRepairedContent);
+        String extractedJson = extractJsonObject(normalized);
+        parsedResult = tryParseJson(extractedJson, clazz, validator);
+        if (parsedResult != null) {
+            return parsedResult;
+        }
+
+        String repairedJson = repairCommonJsonSyntax(extractedJson);
+        parsedResult = tryParseJson(repairedJson, clazz, validator);
+        if (parsedResult != null) {
+            log.warn("{}解析使用本地语法修复成功", name);
+            return parsedResult;
+        }
+
+        String llmRepaired = repairJsonWithLlm(repairedJson, name);
+        String llmNormalized = normalizeJsonContent(llmRepaired);
+        String llmExtracted = extractJsonObject(llmNormalized);
+        String llmRepairedFinal = repairCommonJsonSyntax(llmExtracted);
+        parsedResult = tryParseJson(llmRepairedFinal, clazz, validator);
+        if (parsedResult != null) {
+            log.warn("{}解析使用 LLM 修复成功", name);
+            return parsedResult;
+        }
+
+        log.error("{}解析失败, originalContent={}", name, content);
         throw new RuntimeException(name + "解析失败");
+    }
+
+    /**
+     * 解析 JSON 列表响应
+     */
+    private <T> T parseJsonListResponse(String content, TypeToken<T> typeToken, String name) {
+        T parsedResult = tryParseJsonList(content, typeToken);
+        if (parsedResult != null) {
+            return parsedResult;
+        }
+
+        String normalized = normalizeJsonContent(content);
+        parsedResult = tryParseJsonList(normalized, typeToken);
+        if (parsedResult != null) {
+            return parsedResult;
+        }
+
+        String extractedJson = extractJsonArray(normalized);
+        parsedResult = tryParseJsonList(extractedJson, typeToken);
+        if (parsedResult != null) {
+            return parsedResult;
+        }
+
+        String repairedJson = repairCommonJsonSyntax(extractedJson);
+        parsedResult = tryParseJsonList(repairedJson, typeToken);
+        if (parsedResult != null) {
+            log.warn("{}解析使用本地语法修复成功", name);
+            return parsedResult;
+        }
+
+        String llmRepaired = repairJsonWithLlm(repairedJson, name);
+        String llmNormalized = normalizeJsonContent(llmRepaired);
+        String llmExtracted = extractJsonArray(llmNormalized);
+        String llmRepairedFinal = repairCommonJsonSyntax(llmExtracted);
+        parsedResult = tryParseJsonList(llmRepairedFinal, typeToken);
+        if (parsedResult != null) {
+            log.warn("{}解析使用 LLM 修复成功", name);
+            return parsedResult;
+        }
+
+        log.error("{}解析失败, content={}", name, content);
+        throw new RuntimeException(name + "解析失败");
+    }
+
+    private <T> Predicate<T> buildValidator(Class<T> clazz) {
+        if (ArticleState.OutlineResult.class.equals(clazz)) {
+            return result -> isValidOutlineResult((ArticleState.OutlineResult) result);
+        }
+        if (ArticleState.Agent4Result.class.equals(clazz)) {
+            return result -> isValidAgent4Result((ArticleState.Agent4Result) result);
+        }
+        return result -> result != null;
     }
 
     private <T> T tryParseJson(String json, Class<T> clazz, Predicate<T> validator) {
@@ -364,6 +642,138 @@ public class ArticleAgentService {
         } catch (JsonSyntaxException e) {
             return null;
         }
+    }
+
+    private <T> T tryParseJsonList(String json, TypeToken<T> typeToken) {
+        if (!StringUtils.hasText(json)) {
+            return null;
+        }
+
+        try {
+            return GsonUtils.fromJson(json, typeToken);
+        } catch (JsonSyntaxException e) {
+            return null;
+        }
+    }
+
+    private String normalizeJsonContent(String content) {
+        if (!StringUtils.hasText(content)) {
+            return content;
+        }
+
+        String normalized = content.trim();
+        if (normalized.startsWith("```")) {
+            normalized = normalized.replaceFirst("^```(?:json)?\\s*", "");
+            normalized = normalized.replaceFirst("\\s*```$", "");
+        }
+        return normalized.trim();
+    }
+
+    private String extractJsonObject(String content) {
+        if (!StringUtils.hasText(content)) {
+            return content;
+        }
+
+        int start = content.indexOf('{');
+        int end = content.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return content.substring(start, end + 1);
+        }
+        return content;
+    }
+
+    private String extractJsonArray(String content) {
+        if (!StringUtils.hasText(content)) {
+            return content;
+        }
+
+        int start = content.indexOf('[');
+        int end = content.lastIndexOf(']');
+        if (start >= 0 && end > start) {
+            return content.substring(start, end + 1);
+        }
+        return content;
+    }
+
+    private String repairCommonJsonSyntax(String json) {
+        if (!StringUtils.hasText(json)) {
+            return json;
+        }
+
+        String repaired = json
+                .replace("\uFEFF", "")
+                .replace("“", "\"")
+                .replace("”", "\"")
+                .replace("‘", "'")
+                .replace("’", "'");
+
+        repaired = repaired.replaceAll(",\\s*([}\\]])", "$1");
+        repaired = escapeInnerQuotesInJsonStrings(repaired);
+        return repaired;
+    }
+
+    /**
+     * 修复字符串值中未转义的内部引号。
+     */
+    private String escapeInnerQuotesInJsonStrings(String json) {
+        StringBuilder sb = new StringBuilder(json.length() + 16);
+        boolean inString = false;
+        boolean escaped = false;
+
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+
+            if (!inString) {
+                if (c == '"') {
+                    inString = true;
+                }
+                sb.append(c);
+                continue;
+            }
+
+            if (escaped) {
+                sb.append(c);
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                sb.append(c);
+                escaped = true;
+                continue;
+            }
+
+            if (c == '"') {
+                char nextSignificant = findNextSignificantChar(json, i + 1);
+                boolean isClosingQuote = nextSignificant == ','
+                        || nextSignificant == ']'
+                        || nextSignificant == '}'
+                        || nextSignificant == ':'
+                        || nextSignificant == '\0';
+
+                if (isClosingQuote) {
+                    inString = false;
+                    sb.append(c);
+                } else {
+                    sb.append('\\').append('"');
+                }
+                continue;
+            }
+
+            sb.append(c);
+        }
+
+        return sb.toString();
+    }
+
+    private char findNextSignificantChar(String text, int startIndex) {
+        for (int i = startIndex; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (!Character.isWhitespace(c)) {
+                return c;
+            }
+        }
+        return '\0';
     }
 
     /**
