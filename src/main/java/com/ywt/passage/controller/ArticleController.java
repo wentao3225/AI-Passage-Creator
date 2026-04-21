@@ -12,7 +12,9 @@ import com.ywt.passage.exception.ErrorCode;
 import com.ywt.passage.exception.ThrowUtils;
 import com.ywt.passage.model.dto.article.*;
 import com.ywt.passage.model.enums.ArticleStyleEnum;
+import com.ywt.passage.model.vo.AgentExecutionStats;
 import com.ywt.passage.model.vo.ArticleVO;
+import com.ywt.passage.service.AgentLogService;
 import com.ywt.passage.service.ArticleService;
 import com.ywt.passage.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +45,9 @@ public class ArticleController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private AgentLogService agentLogService;
 
     @PostMapping("/create")
     @Operation(summary = "创建文章任务")
@@ -168,7 +173,7 @@ public class ArticleController {
     @Operation(summary = "获取文章生成进度(SSE)")
     public SseEmitter getProgress(@PathVariable String taskId, HttpServletRequest httpServletRequest) {
         ThrowUtils.throwIf(taskId == null || taskId.trim().isEmpty(),
-                ErrorCode.PARAMS_ERROR, "任务ID不能为空");
+                ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
 
         // 校验权限（内部会检查任务是否存在以及用户是否有权限访问）
         User loginUser = userService.getLoginUser(httpServletRequest);
@@ -228,5 +233,19 @@ public class ArticleController {
 
         return ResultUtils.success(result);
     }
+
+    /**
+     * 获取任务执行日志
+     */
+    @GetMapping("/execution-logs/{taskId}")
+    @Operation(summary = "获取任务执行日志")
+    public BaseResponse<AgentExecutionStats> getExecutionLogs(@PathVariable String taskId) {
+        ThrowUtils.throwIf(taskId == null || taskId.trim().isEmpty(),
+                ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
+
+        AgentExecutionStats stats = agentLogService.getExecutionStats(taskId);
+        return ResultUtils.success(stats);
+    }
+
 
 }

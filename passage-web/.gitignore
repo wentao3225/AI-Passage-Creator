@@ -28,6 +28,9 @@ coverage
 
 .eslintcache
 
+# tsc 误在源码目录编译产生的 JS 副本
+src/**/*.js
+
 # Cypress
 /cypress/videos/
 /cypress/screenshots/

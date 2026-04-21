@@ -46,7 +46,70 @@
                     <a-divider />
 
                     <!-- 执行日志面板 -->
+                    <div v-if="executionStats && executionStats.logs && executionStats.logs.length > 0"
+                        class="execution-logs-section">
+                        <div class="logs-header" @click="showExecutionLogs = !showExecutionLogs">
+                            <h2 class="section-title">
+                                <ClockCircleOutlined class="section-icon" />
+                                执行日志
+                                <a-tag :color="getStatusColor(executionStats.overallStatus ?? '')"
+                                    class="status-tag-small">
+                                    {{ executionStats.overallStatus ?? '' }}
+                                </a-tag>
+                            </h2>
+                            <ThunderboltOutlined :class="['toggle-icon', { expanded: showExecutionLogs }]" />
+                        </div>
 
+                        <div :class="['logs-collapse-wrapper', { expanded: showExecutionLogs }]">
+                            <div class="logs-content">
+                                <!-- 统计概览 -->
+                                <div class="stats-summary">
+                                    <div class="stat-item">
+                                        <span class="label">总耗时</span>
+                                        <span class="value">{{ executionStats.totalDurationMs ?? 0 }}ms</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">智能体数量</span>
+                                        <span class="value">{{ executionStats.agentCount ?? 0 }}</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="label">平均耗时</span>
+                                        <span class="value">
+                                            {{ executionStats.agentCount && executionStats.totalDurationMs ?
+                                                Math.round(executionStats.totalDurationMs / executionStats.agentCount) : 0
+                                            }}ms
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- 智能体时间线 -->
+                                <div class="agent-timeline">
+                                    <div v-for="log in executionStats.logs" :key="log.id"
+                                        :class="['timeline-item', log.status?.toLowerCase()]">
+                                        <div class="timeline-indicator">
+                                            <CheckCircleOutlined v-if="log.status === 'SUCCESS'" class="icon success" />
+                                            <CloseCircleOutlined v-else-if="log.status === 'FAILED'"
+                                                class="icon failed" />
+                                            <LoadingOutlined v-else class="icon running" />
+                                        </div>
+                                        <div class="timeline-content">
+                                            <div class="timeline-header">
+                                                <span class="agent-name">{{ getAgentDisplayName(log.agentName ?? '')
+                                                }}</span>
+                                                <span class="duration">{{ log.durationMs ?? 0 }}ms</span>
+                                            </div>
+                                            <div class="timeline-time">
+                                                {{ log.startTime ? formatDate(log.startTime) : '' }}
+                                            </div>
+                                            <div v-if="log.errorMessage" class="error-message">
+                                                <CloseCircleOutlined /> {{ log.errorMessage }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <!-- 大纲 -->
                     <div v-if="article.outline && article.outline.length > 0" class="outline-section">
                         <h2 class="section-title">
@@ -118,7 +181,7 @@ import {
     PictureOutlined,
     RedoOutlined,
 } from '@ant-design/icons-vue'
-import { getArticle } from '@/api/articleController'
+import { getArticle, getExecutionLogs } from '@/api/articleController'
 import { marked } from 'marked'
 import dayjs from 'dayjs'
 
@@ -127,6 +190,10 @@ const route = useRoute()
 
 const loading = ref(false)
 const article = ref<API.ArticleVO | null>(null)
+const executionStats = ref<API.AgentExecutionStats | null>(null)
+const logsLoading = ref(false)
+const showExecutionLogs = ref(false)
+
 
 // Markdown 转 HTML
 /**
@@ -155,6 +222,8 @@ const loadArticle = async () => {
         const res = await getArticle({ taskId })
         // 兼容空数据返回
         article.value = res.data.data || null
+        // 自动加载执行日志
+        await loadExecutionLogs(taskId)
     } catch (error) {
         message.error((error as Error).message || '加载失败')
     } finally {
@@ -164,6 +233,19 @@ const loadArticle = async () => {
 }
 
 // 加载执行日志
+
+const loadExecutionLogs = async (taskId: string) => {
+    logsLoading.value = true
+    try {
+        const res = await getExecutionLogs({ taskId })
+        executionStats.value = res.data.data || null
+    } catch (error) {
+        console.error('加载执行日志失败:', error)
+    } finally {
+        logsLoading.value = false
+    }
+}
+
 
 // 返回
 /**
