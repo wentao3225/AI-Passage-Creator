@@ -127,6 +127,12 @@ declare namespace API {
     message?: string;
   };
 
+  type BaseResponseStatisticsVO = {
+    code?: number;
+    data?: StatisticsVO;
+    message?: string;
+  };
+
   type BaseResponseString = {
     code?: number;
     data?: string;
@@ -207,6 +213,17 @@ declare namespace API {
 
   type SseEmitter = {
     timeout?: number;
+  };
+
+  type StatisticsVO = {
+    todayCount?: number;
+    weekCount?: number;
+    monthCount?: number;
+    totalCount?: number;
+    successRate?: number;
+    avgDurationMs?: number;
+    activeUserCount?: number;
+    totalUserCount?: number;
   };
 
   type TitleOption = {

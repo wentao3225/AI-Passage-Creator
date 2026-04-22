@@ -12,6 +12,7 @@ import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import com.ywt.passage.service.ImageServiceStrategy;
 import com.ywt.passage.utils.GsonUtils;
+import com.ywt.passage.utils.StylePromptUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -126,7 +127,7 @@ public class ArticleAgentService {
     public void agent1GenerateTitleOptions(ArticleState state) {
         String prompt = PromptConstant.AGENT1_TITLE_PROMPT
                 .replace("{topic}", state.getTopic())
-                + getStylePrompt(state.getStyle());
+                + StylePromptUtil.getStylePrompt(state.getStyle());
 
         String content = callLlm(prompt);
         List<ArticleState.TitleOption> titleOptions = parseJsonListResponse(
@@ -156,7 +157,7 @@ public class ArticleAgentService {
                 .replace("{mainTitle}", state.getTitle().getMainTitle())
                 .replace("{subTitle}", state.getTitle().getSubTitle())
                 .replace("{descriptionSection}", descriptionSection)
-                + getStylePrompt(state.getStyle());
+                + StylePromptUtil.getStylePrompt(state.getStyle());
 
         String content = callLlmWithStreaming(prompt, streamHandler, SseMessageTypeEnum.AGENT2_STREAMING);
         ArticleState.OutlineResult outlineResult = parseJsonResponse(content, ArticleState.OutlineResult.class, "大纲");
@@ -174,7 +175,7 @@ public class ArticleAgentService {
         String prompt = PromptConstant.AGENT3_CONTENT_PROMPT
                 .replace("{mainTitle}", state.getTitle().getMainTitle())
                 .replace("{subTitle}", state.getTitle().getSubTitle())
-                .replace("{outline}", outlineText) + getStylePrompt(state.getStyle());
+                .replace("{outline}", outlineText) + StylePromptUtil.getStylePrompt(state.getStyle());
 
         String content = callLlmWithStreaming(prompt, streamHandler, SseMessageTypeEnum.AGENT3_STREAMING);
         state.setContent(content);
@@ -827,27 +828,6 @@ public class ArticleAgentService {
         imageResult.setPlaceholderId(requirement.getPlaceholderId());  // 记录占位符ID
         imageResult.setDescription(requirement.getType());
         return imageResult;
-    }
-
-    /**
-     * 根据风格获取对应的prompt提示增加
-     */
-    private String getStylePrompt(String style) {
-        if (style == null || style.isEmpty()) {
-            return "";
-        }
-
-        ArticleStyleEnum styleEnum = ArticleStyleEnum.getEnumByValue(style);
-        if (styleEnum == null) {
-            return "";
-        }
-
-        return switch (styleEnum) {
-            case TECH -> PromptConstant.STYLE_TECH_PROMPT;
-            case EMOTIONAL -> PromptConstant.STYLE_EMOTIONAL_PROMPT;
-            case EDUCATIONAL -> PromptConstant.STYLE_EDUCATIONAL_PROMPT;
-            case HUMOROUS -> PromptConstant.STYLE_HUMOROUS_PROMPT;
-        };
     }
 
 // endregion

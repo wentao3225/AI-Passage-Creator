@@ -1,6 +1,8 @@
 package com.ywt.passage.core.service;
 
 import com.google.gson.reflect.TypeToken;
+import com.ywt.passage.agent.ArticleAgentOrchestrator;
+import com.ywt.passage.agent.config.AgentConfig;
 import com.ywt.passage.core.manager.SseEmitterManager;
 import com.ywt.passage.entity.Article;
 import com.ywt.passage.model.dto.article.ArticleState;
@@ -34,57 +36,12 @@ public class ArticleAsyncService {
     @Resource
     private ArticleService articleService;
 
-    /**
-     * 异步执行文章生成
-     *
-     * @param taskId 任务ID
-     * @param topic  选题
-     */
-//    @Async("articleExecutor")
-//    public void executeArticleGeneration(String taskId, String topic, String style, List<String> enabledImageMethods) {
-//        log.info("异步任务开始, taskId={}, topic={},style={}", taskId, topic, style);
-//
-//        try {
-//            // 更新状态为处理中
-//            articleService.updateArticleStatus(taskId, ArticleStatusEnum.PROCESSING, null);
-//
-//            // 创建状态对象
-//            ArticleState state = new ArticleState();
-//            state.setTaskId(taskId);
-//            state.setTopic(topic);
-//            state.setStyle(style);
-//            state.setEnabledImageMethods(enabledImageMethods);
-//
-//            // 执行智能体编排,并通过 SSE 推送进度
-//            articleAgentService.executeArticleGeneration(state, message ->
-//                    handleAgentMessage(taskId, message, state));
-//
-//            // 保存完整文章到数据库
-//            articleService.saveArticleContent(taskId, state);
-//
-//            // 更新状态为已完成
-//            articleService.updateArticleStatus(taskId, ArticleStatusEnum.COMPLETED, null);
-//
-//            // 推送完成消息
-//            sendSseMessage(taskId, SseMessageTypeEnum.ALL_COMPLETE, Map.of("taskId", taskId));
-//
-//            // 完成 SSE 连接
-//            sseEmitterManager.complete(taskId);
-//
-//            log.info("异步任务完成, taskId={}", taskId);
-//        } catch (Exception e) {
-//            log.error("异步任务失败, taskId={}", taskId, e);
-//
-//            // 更新状态为失败
-//            articleService.updateArticleStatus(taskId, ArticleStatusEnum.FAILED, e.getMessage());
-//
-//            // 推送错误消息
-//            sendSseMessage(taskId, SseMessageTypeEnum.ERROR, Map.of("message", e.getMessage()));
-//
-//            // 完成 SSE 连接
-//            sseEmitterManager.complete(taskId);
-//        }
-//    }
+    @Resource
+    private ArticleAgentOrchestrator articleAgentOrchestrator;
+
+    @Resource
+    private AgentConfig agentConfig;
+
 
     /**
      * 阶段1：异步生成标题方案
@@ -95,7 +52,8 @@ public class ArticleAsyncService {
      */
     @Async("articleExecutor")
     public void executePhase1(String taskId, String topic, String style) {
-        log.info("阶段1异步任务开始, taskId={}, topic={}, style={}", taskId, topic, style);
+        boolean orchestratorEnabled = agentConfig.isOrchestratorEnabled();
+        log.info("阶段1异步任务开始, taskId={}, topic={}, style={},使用多智能体编排={}", taskId, topic, style, orchestratorEnabled);
 
         try {
             // 更新状态和阶段
@@ -109,8 +67,13 @@ public class ArticleAsyncService {
             state.setStyle(style);
 
             // 执行阶段1：生成标题方案
-            articleAgentService.executePhase1_GenerateTitles(state, message -> handleAgentMessage(taskId, message, state));
-
+            if (orchestratorEnabled) {
+                articleAgentOrchestrator.executePhase1_GenerateTitles(state, message ->
+                        handleAgentMessage(taskId, message, state));
+            } else {
+                articleAgentService.executePhase1_GenerateTitles(state, message ->
+                        handleAgentMessage(taskId, message, state));
+            }
             // 保存标题方案到数据库
             articleService.saveTitleOptions(taskId, state.getTitleOptions());
 
@@ -144,7 +107,8 @@ public class ArticleAsyncService {
      */
     @Async("articleExecutor")
     public void executePhase2(String taskId) {
-        log.info("阶段2异步任务开始, taskId={}", taskId);
+        boolean orchestratorEnabled = agentConfig.isOrchestratorEnabled();
+        log.info("阶段2异步任务开始, taskId={},使用多智能体编排={}", taskId, orchestratorEnabled);
 
         try {
             // 获取文章信息
@@ -166,9 +130,13 @@ public class ArticleAsyncService {
             state.setTitle(title);
 
             // 执行阶段2：生成大纲
-            articleAgentService.executePhase2_GenerateOutline(state, message -> {
-                handleAgentMessage(taskId, message, state);
-            });
+            if (orchestratorEnabled) {
+                articleAgentOrchestrator.executePhase2_GenerateOutline(state, message ->
+                        handleAgentMessage(taskId, message, state));
+            } else {
+                articleAgentService.executePhase2_GenerateOutline(state, message ->
+                        handleAgentMessage(taskId, message, state));
+            }
 
             // 保存大纲到数据库
             Article articleToUpdate = articleService.getByTaskId(taskId);
@@ -200,7 +168,8 @@ public class ArticleAsyncService {
      */
     @Async("articleExecutor")
     public void executePhase3(String taskId) {
-        log.info("阶段3异步任务开始, taskId={}", taskId);
+        boolean orchestratorEnabled = agentConfig.isOrchestratorEnabled();
+        log.info("阶段3异步任务开始, taskId={},使用多智能体编排={}", taskId, orchestratorEnabled);
 
         try {
             // 获取文章信息
@@ -242,10 +211,14 @@ public class ArticleAsyncService {
             state.setOutline(outlineResult);
 
             // 执行阶段3：生成正文+配图
-            articleAgentService.executePhase3_GenerateContent(state, message -> {
-                handleAgentMessage(taskId, message, state);
-            });
-
+            if (orchestratorEnabled) {
+                articleAgentOrchestrator.executePhase3_GenerateContent(state, message ->
+                        handleAgentMessage(taskId, message, state));
+            } else {
+                articleAgentService.executePhase3_GenerateContent(state, message -> {
+                    handleAgentMessage(taskId, message, state);
+                });
+            }
             // 保存完整文章到数据库
             articleService.saveArticleContent(taskId, state);
 

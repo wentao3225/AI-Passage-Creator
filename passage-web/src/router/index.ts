@@ -47,6 +47,11 @@ const router = createRouter({
       name: "用户管理",
       component: () => import("@/pages/admin/UserManagePage.vue"),
     },
+    {
+      path: "/admin/statistics",
+      name: "数据分析",
+      component: () => import("@/pages/admin/StatisticsPage.vue"),
+    },
   ],
 });
 
