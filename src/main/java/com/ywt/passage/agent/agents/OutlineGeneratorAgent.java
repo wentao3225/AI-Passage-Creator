@@ -6,7 +6,6 @@ import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.ywt.passage.agent.StreamHandlerContext;
 import com.ywt.passage.constant.PromptConstant;
 import com.ywt.passage.model.dto.article.ArticleState;
-import com.ywt.passage.model.enums.ArticleStyleEnum;
 import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import com.ywt.passage.utils.GsonUtils;
 import com.ywt.passage.utils.StylePromptUtil;

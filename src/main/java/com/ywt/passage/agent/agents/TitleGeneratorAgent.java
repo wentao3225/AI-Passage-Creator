@@ -9,7 +9,6 @@ import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.ywt.passage.constant.PromptConstant;
 import com.ywt.passage.model.dto.article.ArticleState;
-import com.ywt.passage.model.enums.ArticleStyleEnum;
 import com.ywt.passage.utils.GsonUtils;
 import com.ywt.passage.utils.LlmJsonUtils;
 import com.ywt.passage.utils.StylePromptUtil;

@@ -7,7 +7,6 @@ import com.ywt.passage.annotation.AgentExecution;
 import com.ywt.passage.constant.PromptConstant;
 import com.ywt.passage.model.dto.article.ArticleState;
 import com.ywt.passage.model.dto.image.ImageRequest;
-import com.ywt.passage.model.enums.ArticleStyleEnum;
 import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import com.ywt.passage.service.ImageServiceStrategy;
