@@ -1,4 +1,4 @@
-package com.ywt.passage.enums;
+package com.ywt.passage.model.enums;
 
 import lombok.Getter;
 

@@ -40,6 +40,21 @@ export async function getLoginUser(options?: { [key: string]: any }) {
   });
 }
 
+/** 此处后端没有提供注释 POST /user/list/page */
+export async function listUserByPage(
+  body: API.UserQueryRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponsePageUserManageVO>("/user/list/page", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
 /** 此处后端没有提供注释 POST /user/login */
 export async function userLogin(
   body: API.UserLoginRequest,
@@ -69,6 +84,21 @@ export async function userRegister(
   options?: { [key: string]: any }
 ) {
   return request<API.BaseResponseLong>("/user/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+/** 此处后端没有提供注释 POST /user/update */
+export async function updateUser(
+  body: API.UserUpdateRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseBoolean>("/user/update", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

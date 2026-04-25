@@ -2,23 +2,30 @@ package com.ywt.passage.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
+import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.ywt.passage.entity.User;
-import com.ywt.passage.enums.UserRoleEnum;
+import com.ywt.passage.model.enums.UserRoleEnum;
 import com.ywt.passage.exception.BusinessException;
 import com.ywt.passage.exception.ErrorCode;
 import com.ywt.passage.mapper.UserMapper;
 import com.ywt.passage.model.dto.user.UserAddRequest;
+import com.ywt.passage.model.dto.user.UserQueryRequest;
+import com.ywt.passage.model.dto.user.UserUpdateRequest;
 import com.ywt.passage.model.vo.LoginUserVO;
+import com.ywt.passage.model.vo.UserManageVO;
 import com.ywt.passage.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.util.DigestUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import static com.ywt.passage.constant.UserConstant.DEFAULT_ROLE;
+import static com.ywt.passage.constant.UserConstant.ADMIN_ROLE;
 import static com.ywt.passage.constant.UserConstant.USER_LOGIN_STATE;
 
 /**
@@ -197,15 +204,126 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     /**
-     * 删除用户（管理员）
+     * 分页查询用户（管理员）
      *
-     * @param id 用户id
+     * @param userQueryRequest 查询条件
+     * @return 用户分页结果
+     */
+    @Override
+    public Page<UserManageVO> listUserByPage(UserQueryRequest userQueryRequest) {
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "查询参数为空");
+        }
+        long current = userQueryRequest.getCurrent();
+        long pageSize = userQueryRequest.getPageSize();
+        if (current <= 0 || pageSize <= 0 || pageSize > 50) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "分页参数不合法");
+        }
+
+        QueryWrapper queryWrapper = QueryWrapper.create()
+                .eq("isDelete", 0)
+                .orderBy("createTime", false);
+
+        if (StrUtil.isNotBlank(userQueryRequest.getUserAccount())) {
+            queryWrapper.like("userAccount", userQueryRequest.getUserAccount().trim());
+        }
+        if (StrUtil.isNotBlank(userQueryRequest.getUserName())) {
+            queryWrapper.like("userName", userQueryRequest.getUserName().trim());
+        }
+        if (StrUtil.isNotBlank(userQueryRequest.getUserRole())) {
+            String userRole = userQueryRequest.getUserRole().trim();
+            if (UserRoleEnum.getEnumByValue(userRole) == null) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户角色不合法");
+            }
+            queryWrapper.eq("userRole", userRole);
+        }
+
+        Page<User> userPage = this.page(new Page<>(current, pageSize), queryWrapper);
+        return convertToManageVOPage(userPage);
+    }
+
+    /**
+     * 更新用户（管理员）
+     *
+     * @param userUpdateRequest 更新请求
+     * @param loginUser         当前登录用户
      * @return 是否成功
      */
     @Override
-    public boolean deleteUser(long id) {
+    public boolean updateUser(UserUpdateRequest userUpdateRequest, User loginUser) {
+        if (userUpdateRequest == null || userUpdateRequest.getId() == null || userUpdateRequest.getId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户 id 不合法");
+        }
+
+        Long userId = userUpdateRequest.getId();
+        User oldUser = this.getById(userId);
+        if (oldUser == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND_ERROR, "用户不存在");
+        }
+
+        String updateRole = userUpdateRequest.getUserRole();
+        if (StrUtil.isNotBlank(updateRole) && UserRoleEnum.getEnumByValue(updateRole.trim()) == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户角色不合法");
+        }
+
+        String updateAccount = userUpdateRequest.getUserAccount();
+        if (StrUtil.isNotBlank(updateAccount)) {
+            String trimAccount = updateAccount.trim();
+            if (trimAccount.length() < 4) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号长度过短");
+            }
+            QueryWrapper queryWrapper = QueryWrapper.create().eq("userAccount", trimAccount).eq("isDelete", 0);
+            User existUser = this.getOne(queryWrapper);
+            if (existUser != null && !existUser.getId().equals(userId)) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号重复");
+            }
+        }
+
+        if (loginUser != null && loginUser.getId().equals(userId)
+                && StrUtil.isNotBlank(updateRole)
+                && !ADMIN_ROLE.equals(updateRole.trim())) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "不能将自己的管理员权限降级");
+        }
+
+        User user = new User();
+        user.setId(userId);
+        if (userUpdateRequest.getUserAccount() != null) {
+            user.setUserAccount(StrUtil.trim(userUpdateRequest.getUserAccount()));
+        }
+        if (userUpdateRequest.getUserName() != null) {
+            user.setUserName(userUpdateRequest.getUserName());
+        }
+        if (userUpdateRequest.getUserAvatar() != null) {
+            user.setUserAvatar(userUpdateRequest.getUserAvatar());
+        }
+        if (userUpdateRequest.getUserProfile() != null) {
+            user.setUserProfile(userUpdateRequest.getUserProfile());
+        }
+        if (StrUtil.isNotBlank(updateRole)) {
+            user.setUserRole(updateRole.trim());
+        }
+
+        boolean updateResult = this.updateById(user);
+        if (!updateResult) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "更新用户失败");
+        }
+        return true;
+    }
+
+    /**
+     * 删除用户（管理员）
+     *
+     * @param id        用户id
+     * @param loginUser 当前登录用户
+     * @return 是否成功
+     */
+    @Override
+    public boolean deleteUser(long id, User loginUser) {
         if (id <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户id不合法");
+        }
+        if (loginUser != null && loginUser.getId() == id) {
+            throw new BusinessException(ErrorCode.OPERATION_ERROR, "不能删除当前登录账号");
         }
         boolean result = this.removeById(id);
         if (!result) {
@@ -224,5 +342,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 盐值，混淆密码
         final String SALT = "yupi";
         return DigestUtils.md5DigestAsHex((userPassword + SALT).getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 分页结果转管理端 VO
+     */
+    private Page<UserManageVO> convertToManageVOPage(Page<User> userPage) {
+        Page<UserManageVO> userManageVOPage = new Page<>();
+        userManageVOPage.setPageNumber(userPage.getPageNumber());
+        userManageVOPage.setPageSize(userPage.getPageSize());
+        userManageVOPage.setTotalRow(userPage.getTotalRow());
+
+        List<UserManageVO> userManageVOList = userPage.getRecords().stream()
+                .map(UserManageVO::objToVo)
+                .collect(Collectors.toList());
+        userManageVOPage.setRecords(userManageVOList);
+        return userManageVOPage;
     }
 }

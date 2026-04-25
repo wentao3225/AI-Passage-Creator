@@ -1,141 +1,369 @@
 <template>
-  <section class="auth-page">
-    <div class="auth-card">
-      <h2>欢迎登录</h2>
-      <p>登录后可保存创作记录并同步多端内容。</p>
+  <div id="userLoginPage">
+    <div class="auth-container">
+      <!-- 左侧品牌区域 -->
+      <div class="brand-section">
+        <div class="brand-bg"></div>
+        <div class="brand-content">
+          <div class="brand-logo">
+            <img src="@/assets/logo.png" alt="Logo" class="logo-img" />
+          </div>
+          <h1 class="brand-title">AI 爆款文章创作器</h1>
+          <p class="brand-subtitle">让每个人都能写出 10万+ 文章</p>
+          <div class="brand-features">
+            <div class="feature-item">
+              <CheckCircleOutlined class="feature-check" />
+              <span>智能生成标题与大纲</span>
+            </div>
+            <div class="feature-item">
+              <CheckCircleOutlined class="feature-check" />
+              <span>流式生成高质量正文</span>
+            </div>
+            <div class="feature-item">
+              <CheckCircleOutlined class="feature-check" />
+              <span>自动配图一键导出</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <a-form layout="vertical" :model="formState" @finish="handleSubmit">
-        <a-form-item label="账号" name="account" :rules="[{ required: true, message: '请输入账号' }]">
-          <a-input v-model:value="formState.account" placeholder="请输入邮箱或手机号" size="large" />
-        </a-form-item>
+      <!-- 右侧表单区域 -->
+      <div class="form-section">
+        <div class="form-card">
+          <h2 class="form-title">欢迎回来</h2>
+          <p class="form-subtitle">登录您的账号继续创作</p>
 
-        <a-form-item label="密码" name="password" :rules="[{ required: true, message: '请输入密码' }]">
-          <a-input-password v-model:value="formState.password" placeholder="请输入密码" size="large" />
-        </a-form-item>
+          <a-form :model="formState" name="basic" autocomplete="off" @finish="handleSubmit" class="login-form">
+            <a-form-item name="userAccount" :rules="[{ required: true, message: '请输入账号' }]">
+              <a-input v-model:value="formState.userAccount" placeholder="请输入账号" size="large" class="form-input">
+                <template #prefix>
+                  <UserOutlined class="input-icon" />
+                </template>
+              </a-input>
+            </a-form-item>
+            <a-form-item name="userPassword" :rules="[
+              { required: true, message: '请输入密码' },
+              { min: 8, message: '密码长度不能小于 8 位' },
+            ]">
+              <a-input-password v-model:value="formState.userPassword" placeholder="请输入密码" size="large"
+                class="form-input">
+                <template #prefix>
+                  <LockOutlined class="input-icon" />
+                </template>
+              </a-input-password>
+            </a-form-item>
 
-        <a-button type="primary" html-type="submit" size="large" :loading="submitting" block>
-          立即登录
-        </a-button>
-      </a-form>
+            <a-form-item>
+              <a-button type="primary" html-type="submit" size="large" block class="submit-btn">
+                登录
+              </a-button>
+            </a-form-item>
+          </a-form>
 
-      <div class="bottom-link">
-        没有账号？
-        <router-link to="/user/register">去注册</router-link>
+          <div class="form-footer">
+            <span class="footer-text">还没有账号？</span>
+            <RouterLink to="/user/register" class="register-link">立即注册</RouterLink>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 </template>
 
-<script setup lang="ts">
-  import { reactive, ref } from 'vue'
-  import { message } from 'ant-design-vue'
-  import { useRoute, useRouter } from 'vue-router'
-  import { userLogin } from '@/api/userController'
-  import { useLoginUserStore } from '@/stores/loginUser'
+<script lang="ts" setup>
+import { reactive } from 'vue'
+import { userLogin } from '@/api/userController'
+import { useLoginUserStore } from '@/stores/loginUser'
+import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
+import { UserOutlined, LockOutlined, CheckCircleOutlined } from '@ant-design/icons-vue'
 
-  const router = useRouter()
-  const route = useRoute()
-  const loginUserStore = useLoginUserStore()
-  const submitting = ref(false)
+const formState = reactive<API.UserLoginRequest>({
+  userAccount: '',
+  userPassword: '',
+})
 
-  const formState = reactive({
-    account: '',
-    password: '',
-  })
+const router = useRouter()
+const loginUserStore = useLoginUserStore()
 
-  const handleSubmit = async () => {
-    if (submitting.value) {
-      return
-    }
-    submitting.value = true
-    try {
-      const res = await userLogin({
-        userAccount: formState.account.trim(),
-        userPassword: formState.password,
-      })
-      if (res.data.code !== 0 || !res.data.data) {
-        message.error(res.data.message || '登录失败')
-        return
-      }
-      loginUserStore.setLoginUser(res.data.data)
-      message.success('登录成功')
-      const redirect = typeof route.query.redirect === 'string' ? decodeURIComponent(route.query.redirect) : '/'
-      await router.replace(redirect.startsWith('/') ? redirect : '/')
-    } catch (error) {
-      message.error('登录失败，请稍后重试')
-    } finally {
-      submitting.value = false
-    }
+/**
+ * 提交表单
+ * @param values
+ */
+const handleSubmit = async (values: any) => {
+  // 先请求后端进行账号密码校验
+  const res = await userLogin(values)
+  // 登录成功，把登录态保存到全局状态中
+  if (res.data.code === 0 && res.data.data) {
+    // 重新拉取当前用户，确保 Pinia 中是最新会话信息
+    await loginUserStore.fetchLoginUser()
+    message.success('登录成功')
+    // 登录后进入首页并替换历史，避免返回到登录页
+    router.push({
+      path: '/',
+      replace: true,
+    })
+  } else {
+    // 保留在当前页并提示后端返回的错误信息
+    message.error('登录失败，' + res.data.message)
   }
+}
 </script>
 
 <style scoped>
-  .auth-page {
-    min-height: calc(100vh - 200px);
-    display: grid;
-    place-items: center;
-    padding: 28px 16px;
-    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+#userLoginPage {
+  min-height: calc(100vh - 64px);
+  background: var(--color-background-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.auth-container {
+  display: flex;
+  width: 100%;
+  max-width: 900px;
+  min-height: 520px;
+  background: white;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+}
+
+/* 左侧品牌区域 */
+.brand-section {
+  flex: 1;
+  padding: 48px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+}
+
+.brand-bg::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+  animation: pulse-bg 8s ease-in-out infinite;
+}
+
+@keyframes pulse-bg {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
   }
 
-  .auth-card {
-    width: min(460px, 100%);
-    border-radius: 18px;
-    padding: 30px 24px;
-    background:
-      radial-gradient(circle at 6% -12%, rgba(29, 79, 145, 0.16), rgba(29, 79, 145, 0) 34%),
-      linear-gradient(180deg, rgba(252, 254, 255, 0.98), rgba(241, 247, 253, 0.98));
-    border: 1px solid rgba(17, 48, 86, 0.16);
-    box-shadow: 0 18px 40px rgba(10, 31, 57, 0.16);
+  50% {
+    transform: scale(1.1);
+    opacity: 0.3;
+  }
+}
+
+.brand-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  color: white;
+}
+
+.brand-logo {
+  margin-bottom: 24px;
+}
+
+.logo-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-xl);
+  padding: 8px;
+}
+
+.brand-title {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+  font-size: 15px;
+  opacity: 0.9;
+  margin: 0 0 36px;
+}
+
+.brand-features {
+  text-align: left;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  backdrop-filter: blur(8px);
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.feature-item:last-child {
+  margin-bottom: 0;
+}
+
+.feature-check {
+  font-size: 18px;
+  color: white;
+}
+
+/* 右侧表单区域 */
+.form-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
+  background: white;
+}
+
+.form-card {
+  width: 100%;
+  max-width: 320px;
+}
+
+.form-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 6px;
+  letter-spacing: -0.5px;
+}
+
+.form-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0 0 32px;
+}
+
+.login-form {
+  margin-bottom: 24px;
+}
+
+.form-input {
+  border-radius: var(--radius-lg);
+  border-color: var(--color-border);
+  transition: all var(--transition-fast);
+}
+
+.form-input:hover {
+  border-color: var(--color-primary-light);
+}
+
+.form-input:focus,
+.form-input:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(29, 79, 145, 0.14);
+}
+
+.form-input :deep(.ant-input) {
+  padding: 12px 14px;
+}
+
+.input-icon {
+  color: var(--color-text-muted);
+  font-size: 16px;
+}
+
+.submit-btn {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: var(--shadow-green) !important;
+  transition: opacity var(--transition-normal) !important;
+}
+
+.submit-btn:hover,
+.submit-btn:focus,
+.submit-btn:active {
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: var(--shadow-green) !important;
+  opacity: 0.92;
+}
+
+.submit-btn :deep(.ant-wave) {
+  display: none;
+}
+
+.form-footer {
+  text-align: center;
+}
+
+.footer-text {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.register-link {
+  color: var(--color-primary);
+  font-weight: 600;
+  margin-left: 4px;
+  transition: color var(--transition-fast);
+}
+
+.register-link:hover {
+  color: var(--color-primary-dark);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .auth-container {
+    flex-direction: column;
+    min-height: auto;
+    border-radius: var(--radius-xl);
   }
 
-  .auth-card h2 {
-    margin: 0;
-    font-size: 30px;
-    color: #0f2d52;
+  .brand-section {
+    padding: 32px 24px;
   }
 
-  .auth-card p {
-    margin: 8px 0 20px;
-    color: #667a92;
+  .brand-title {
+    font-size: 22px;
   }
 
-  .auth-card :deep(.ant-form-item-label > label) {
-    color: #425a76;
-    font-weight: 600;
+  .brand-features {
+    display: none;
   }
 
-  .auth-card :deep(.ant-input),
-  .auth-card :deep(.ant-input-affix-wrapper) {
-    background: #ffffff;
-    border-color: rgba(17, 48, 86, 0.24);
-    border-radius: 12px;
+  .form-section {
+    padding: 32px 24px;
   }
 
-  .auth-card :deep(.ant-input:focus),
-  .auth-card :deep(.ant-input-focused),
-  .auth-card :deep(.ant-input-affix-wrapper:focus),
-  .auth-card :deep(.ant-input-affix-wrapper-focused) {
-    border-color: #1d4f91;
-    box-shadow: 0 0 0 2px rgba(29, 79, 145, 0.16);
+  .form-title {
+    font-size: 22px;
   }
-
-  .auth-card :deep(.ant-btn-primary) {
-    border: none;
-    border-radius: 12px;
-    background: linear-gradient(140deg, #1d4f91, #153d72);
-    box-shadow: 0 10px 20px rgba(13, 37, 67, 0.28);
-  }
-
-  .bottom-link {
-    margin-top: 16px;
-    text-align: center;
-    color: #667a92;
-  }
-
-  .bottom-link a {
-    color: #1d4f91;
-    text-decoration: none;
-    font-weight: 600;
-  }
+}
 </style>

@@ -56,3 +56,41 @@ create table user
 create index idx_userName
     on user (userName);
 
+
+# 添加文章风格字段
+
+-- 为 article 表添加 style 字段（文章风格）
+ALTER TABLE article
+    ADD COLUMN style VARCHAR(20) NULL COMMENT '文章风格：tech/emotional/educational/humorous' AFTER topic;
+
+# 添加阶段相关字段
+
+-- 为 article 表添加阶段相关字段
+ALTER TABLE article
+    ADD COLUMN phase VARCHAR(50) DEFAULT 'PENDING' COMMENT '当前阶段：PENDING/TITLE_GENERATING/TITLE_SELECTING/OUTLINE_GENERATING/OUTLINE_EDITING/CONTENT_GENERATING' AFTER status,
+    ADD COLUMN titleOptions JSON NULL COMMENT '标题方案列表（3-5个方案）' AFTER subTitle,
+    ADD COLUMN userDescription TEXT NULL COMMENT '用户补充描述' AFTER topic,
+    ADD COLUMN enabledImageMethods JSON NULL COMMENT '允许的配图方式列表' AFTER userDescription;
+
+-- 智能体执行日志表
+create table if not exists agent_log
+(
+    id              bigint auto_increment comment 'id' primary key,
+    taskId          varchar(64)                        not null comment '任务ID',
+    agentName       varchar(50)                        not null comment '智能体名称',
+    startTime       datetime                           not null comment '开始时间',
+    endTime         datetime                           null comment '结束时间',
+    durationMs      int                                null comment '耗时（毫秒）',
+    status          varchar(20)                        not null comment '状态：SUCCESS/FAILED',
+    errorMessage    text                               null comment '错误信息',
+    prompt          text                               null comment '使用的Prompt',
+    inputData       json                               null comment '输入数据（JSON格式）',
+    outputData      json                               null comment '输出数据（JSON格式）',
+    createTime      datetime    default CURRENT_TIMESTAMP not null comment '创建时间',
+    updateTime      datetime    default CURRENT_TIMESTAMP not null on update CURRENT_TIMESTAMP comment '更新时间',
+    isDelete        tinyint     default 0              not null comment '是否删除',
+    INDEX idx_taskId (taskId),
+    INDEX idx_agentName (agentName),
+    INDEX idx_status (status),
+    INDEX idx_createTime (createTime)
+) comment '智能体执行日志表' collate = utf8mb4_unicode_ci;

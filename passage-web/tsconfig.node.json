@@ -1,6 +1,6 @@
 // TSConfig for modules that run in Node.js environment via either transpilation or type-stripping.
 {
-  "extends": "@tsconfig/node24/tsconfig.json",
+  "extends": "./tsconfig.json",
   "include": [
     "vite.config.*",
     "vitest.config.*",
@@ -13,6 +13,9 @@
     // Bundler mode provides a smoother developer experience.
     "module": "preserve",
     "moduleResolution": "bundler",
+
+    // Ignore type issues from external declaration files during project type-check.
+    "skipLibCheck": true,
 
     // Include Node.js types and avoid accidentally including other `@types/*` packages.
     "types": ["node"],

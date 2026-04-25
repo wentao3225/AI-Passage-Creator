@@ -1,7 +1,105 @@
 declare namespace API {
+  type AgentExecutionStats = {
+    taskId?: string;
+    totalDurationMs?: number;
+    agentCount?: number;
+    agentDurations?: Record<string, any>;
+    overallStatus?: string;
+    logs?: AgentLog[];
+  };
+
+  type AgentLog = {
+    id?: number;
+    taskId?: string;
+    agentName?: string;
+    startTime?: string;
+    endTime?: string;
+    durationMs?: number;
+    status?: string;
+    errorMessage?: string;
+    prompt?: string;
+    inputData?: string;
+    outputData?: string;
+    createTime?: string;
+    updateTime?: string;
+    isDelete?: number;
+  };
+
+  type ArticleAiModifyOutlineRequest = {
+    taskId?: string;
+    modifySuggestion?: string;
+  };
+
+  type ArticleConfirmOutlineRequest = {
+    taskId?: string;
+    outline?: OutlineSection[];
+  };
+
+  type ArticleConfirmTitleRequest = {
+    taskId?: string;
+    selectedMainTitle?: string;
+    selectedSubTitle?: string;
+    userDescription?: string;
+  };
+
+  type ArticleCreateRequest = {
+    topic?: string;
+    style?: string;
+    enabledImageMethods?: string[];
+  };
+
+  type ArticleQueryRequest = {
+    current?: number;
+    pageSize?: number;
+    sortField?: string;
+    sortOrder?: string;
+    userId?: number;
+    status?: string;
+  };
+
+  type ArticleVO = {
+    id?: number;
+    taskId?: string;
+    userId?: number;
+    topic?: string;
+    style?: string;
+    userDescription?: string;
+    mainTitle?: string;
+    subTitle?: string;
+    titleOptions?: TitleOption[];
+    outline?: OutlineItem[];
+    content?: string;
+    fullContent?: string;
+    coverImage?: string;
+    images?: ImageItem[];
+    status?: string;
+    phase?: string;
+    errorMessage?: string;
+    createTime?: string;
+    completedTime?: string;
+  };
+
+  type BaseResponseAgentExecutionStats = {
+    code?: number;
+    data?: AgentExecutionStats;
+    message?: string;
+  };
+
+  type BaseResponseArticleVO = {
+    code?: number;
+    data?: ArticleVO;
+    message?: string;
+  };
+
   type BaseResponseBoolean = {
     code?: number;
     data?: boolean;
+    message?: string;
+  };
+
+  type BaseResponseListOutlineSection = {
+    code?: number;
+    data?: OutlineSection[];
     message?: string;
   };
 
@@ -17,8 +115,59 @@ declare namespace API {
     message?: string;
   };
 
+  type BaseResponsePageArticleVO = {
+    code?: number;
+    data?: PageArticleVO;
+    message?: string;
+  };
+
+  type BaseResponsePageUserManageVO = {
+    code?: number;
+    data?: PageUserManageVO;
+    message?: string;
+  };
+
+  type BaseResponseStatisticsVO = {
+    code?: number;
+    data?: StatisticsVO;
+    message?: string;
+  };
+
+  type BaseResponseString = {
+    code?: number;
+    data?: string;
+    message?: string;
+  };
+
+  type BaseResponseVoid = {
+    code?: number;
+    data?: Record<string, any>;
+    message?: string;
+  };
+
   type DeleteRequest = {
     id?: number;
+  };
+
+  type getArticleParams = {
+    taskId: string;
+  };
+
+  type getExecutionLogsParams = {
+    taskId: string;
+  };
+
+  type getProgressParams = {
+    taskId: string;
+  };
+
+  type ImageItem = {
+    position?: number;
+    url?: string;
+    method?: string;
+    keywords?: string;
+    sectionTitle?: string;
+    description?: string;
   };
 
   type LoginUserVO = {
@@ -30,6 +179,56 @@ declare namespace API {
     userRole?: string;
     createTime?: string;
     updateTime?: string;
+  };
+
+  type OutlineItem = {
+    section?: number;
+    title?: string;
+    points?: string[];
+  };
+
+  type OutlineSection = {
+    section?: number;
+    title?: string;
+    points?: string[];
+  };
+
+  type PageArticleVO = {
+    records?: ArticleVO[];
+    pageNumber?: number;
+    pageSize?: number;
+    totalPage?: number;
+    totalRow?: number;
+    optimizeCountQuery?: boolean;
+  };
+
+  type PageUserManageVO = {
+    records?: UserManageVO[];
+    pageNumber?: number;
+    pageSize?: number;
+    totalPage?: number;
+    totalRow?: number;
+    optimizeCountQuery?: boolean;
+  };
+
+  type SseEmitter = {
+    timeout?: number;
+  };
+
+  type StatisticsVO = {
+    todayCount?: number;
+    weekCount?: number;
+    monthCount?: number;
+    totalCount?: number;
+    successRate?: number;
+    avgDurationMs?: number;
+    activeUserCount?: number;
+    totalUserCount?: number;
+  };
+
+  type TitleOption = {
+    mainTitle?: string;
+    subTitle?: string;
   };
 
   type UserAddRequest = {
@@ -46,9 +245,39 @@ declare namespace API {
     userPassword?: string;
   };
 
+  type UserManageVO = {
+    id?: number;
+    userAccount?: string;
+    userName?: string;
+    userAvatar?: string;
+    userProfile?: string;
+    userRole?: string;
+    createTime?: string;
+    updateTime?: string;
+  };
+
+  type UserQueryRequest = {
+    current?: number;
+    pageSize?: number;
+    sortField?: string;
+    sortOrder?: string;
+    userAccount?: string;
+    userName?: string;
+    userRole?: string;
+  };
+
   type UserRegisterRequest = {
     userAccount?: string;
     userPassword?: string;
     checkPassword?: string;
+  };
+
+  type UserUpdateRequest = {
+    id?: number;
+    userAccount?: string;
+    userName?: string;
+    userAvatar?: string;
+    userProfile?: string;
+    userRole?: string;
   };
 }

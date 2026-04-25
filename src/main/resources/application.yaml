@@ -1,4 +1,7 @@
 spring:
+  config:
+    import:
+      - classpath:application-local.yaml
   application:
     name: AI-Passage-Creator
   # MySQL 数据库配置
@@ -21,7 +24,10 @@ spring:
   ai:
     dashscope:
       api-key: ${ai.dashscope.api-key}
-
+      chat:
+        options:
+          model: glm-5
+# 服务器配置
 server:
   port: 8567
   servlet:
@@ -34,18 +40,58 @@ server:
 # springdoc-openapi 配置
 springdoc:
   group-configs:
-    - group: 'default'
-      paths-to-match: '/**'
+    - group: "default"
+      paths-to-match: "/**"
       packages-to-scan: com.ywt.passage.controller
+
 # knife4j 接口文档配置
 knife4j:
   enable: true
   setting:
     language: zh_cn
+
+# MyBatis-Flex 配置
 mybatis-flex:
   configuration:
     map-underscore-to-camel-case: false
 
+# pexels 配置
+pexels:
+  api-key: ${pexels.api-key}
 
+# app 配置
+app:
+  image-upload:
+    local-dir: src/main/resources/static/uploads
+    access-url-prefix: http://localhost:${server.port}${server.servlet.context-path}/uploads
+  ssl:
+    extra-trust-store:
+      enabled: true
+      path: certs/dashscope-truststore.jks
+      password: changeit
+      type: JKS
 
+# mermaid 配置
+mermaid:
+  cli-command: mmdc # CLI 命令（Windows 下会自动使用 mmdc.cmd）
+  background-color: transparent # 背景颜色
+  output-format: svg # 输出格式（svg/png/pdf）
+  width: 1200 # 图片宽度（像素）
+  timeout: 30000 # 命令执行超时时间（毫秒）
 
+# Iconify 图标库配置
+iconify:
+  api-url: https://api.iconify.design
+  search-limit: 10
+  default-height: 64
+  default-color: "" # 留空使用 currentColor，或设置如 "#000000"
+# 文章智能体配置
+article:
+  agent:
+    orchestrator:
+      # 是否启用多智能体编排模式（支持配图并行生成）
+      # true: 使用 Spring AI Alibaba 多智能体编排
+      # false: 使用原有的 ArticleAgentService
+      enabled: true
+    # Agent 最大迭代次数
+    max-iterations: 10

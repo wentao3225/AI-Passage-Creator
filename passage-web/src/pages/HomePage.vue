@@ -1,220 +1,648 @@
-<template>
-  <section class="home-page">
-    <div class="hero-shell">
-      <p class="hero-badge">AI 驱动的内容创作平台</p>
-      <h2 class="hero-title">AI 爆款文章创作器</h2>
-      <p class="hero-subtitle">从主题输入到完整文章，10 秒起稿，持续优化表达与结构。</p>
-
-      <div class="hero-cta">
-        <a-input
-          v-model:value="topic"
-          size="large"
-          placeholder="输入文章主题，例如：2026 年 AI 如何改变职场"
-          class="topic-input"
-        />
-        <a-button type="primary" size="large" class="start-btn" @click="handleStart">开始创作</a-button>
-      </div>
-
-      <p class="hero-tips">工作总结、心得体会、演讲稿、分析报告，一键生成</p>
-    </div>
-
-    <div class="feature-shell">
-      <div class="section-head">
-        <p class="section-tag">核心能力</p>
-        <h3>专业人士的一站式 AI 写作工具</h3>
-        <p>从选题到成文，全流程可控，帮你稳定输出高质量内容。</p>
-      </div>
-
-      <div class="feature-grid">
-        <article class="feature-card" v-for="item in features" :key="item.title">
-          <h4>{{ item.title }}</h4>
-          <p>{{ item.desc }}</p>
-        </article>
-      </div>
-    </div>
-  </section>
-</template>
-
 <script setup lang="ts">
-  import { ref } from 'vue'
-  import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useLoginUserStore } from '@/stores/loginUser'
+import { listArticle } from '@/api/articleController'
+import dayjs from 'dayjs'
+import {
+  RocketOutlined,
+  FileTextOutlined,
+  OrderedListOutlined,
+  EditOutlined,
+  PictureOutlined,
+  ThunderboltOutlined,
+  ClockCircleOutlined,
+  RightOutlined
+} from '@ant-design/icons-vue'
 
-  const router = useRouter()
-  const topic = ref('')
+const router = useRouter()
+const loginUserStore = useLoginUserStore()
 
-  const features = [
-    { title: '智能生成标题', desc: '结合主题语义自动生成高点击标题，支持多风格改写。' },
-    { title: '自动生成大纲', desc: '根据目标读者与写作目的输出结构化提纲，逻辑更清晰。' },
-    { title: '流式生成正文', desc: '分段实时输出，边看边改，快速形成可发布内容。' },
-  ]
+// 输入框
+const topic = ref('')
 
-  const handleStart = () => {
-    router.push({ path: '/user/login', query: { topic: topic.value } })
+// 最近文章
+const recentArticles = ref<API.ArticleVO[]>([])
+const loadingArticles = ref(false)
+
+/**
+ * 跳转到创作页。
+ * 若输入框有选题，则通过 query 预填到创作页。
+ */
+const goToCreate = () => {
+  if (topic.value.trim()) {
+    // 带上用户输入的选题，减少二次输入
+    router.push({ path: '/create', query: { topic: topic.value } })
+  } else {
+    // 无选题时直接进入空白创作页
+    router.push('/create')
   }
+}
+
+/**
+ * 跳转历史列表页。
+ */
+const goToList = () => {
+  // 打开用户文章历史记录页面
+  router.push('/article/list')
+}
+
+/**
+ * 打开文章详情页。
+ */
+const viewArticle = (article: API.ArticleVO) => {
+  // 通过 taskId 定位文章详情
+  router.push(`/article/${article.taskId}`)
+}
+
+// 加载最近文章
+const loadRecentArticles = async () => {
+  // 未登录不请求，避免无意义接口调用
+  if (!loginUserStore.loginUser.id) return
+
+  loadingArticles.value = true
+  try {
+    // 首页仅读取少量最近记录用于展示
+    const res = await listArticle({ current: 1, pageSize: 6 })
+    recentArticles.value = res.data.data?.records || []
+  } catch (error) {
+    console.error('加载文章失败:', error)
+  } finally {
+    loadingArticles.value = false
+  }
+}
+
+// 格式化时间
+const formatTime = (time: string | undefined) => {
+  // 时间缺失时显示占位符
+  if (!time) return '--'
+  // 统一首页卡片时间格式
+  return dayjs(time).format('MM-DD HH:mm')
+}
+
+// 功能卡片数据
+const features = [
+  {
+    icon: FileTextOutlined,
+    title: '智能生成标题',
+    description: 'AI 自动分析选题，生成吸引眼球的爆款标题',
+    color: '#22C55E'
+  },
+  {
+    icon: OrderedListOutlined,
+    title: '自动生成大纲',
+    description: '智能规划文章结构，确保逻辑清晰完整',
+    color: '#3B82F6'
+  },
+  {
+    icon: EditOutlined,
+    title: '流式生成正文',
+    description: '实时展示创作过程，体验打字机般的流畅输出',
+    color: '#8B5CF6'
+  },
+  {
+    icon: PictureOutlined,
+    title: '智能配图',
+    description: '自动检索高质量无版权图片，完美匹配内容',
+    color: '#F59E0B'
+  },
+  {
+    icon: ThunderboltOutlined,
+    title: '快速高效',
+    description: '5-10分钟完成全文创作，效率提升10倍',
+    color: '#EF4444'
+  },
+  {
+    icon: ClockCircleOutlined,
+    title: '历史管理',
+    description: '随时查看和管理所有创作记录，支持导出',
+    color: '#06B6D4'
+  }
+]
+
+onMounted(() => {
+  // 首页加载后尝试拉取最近文章
+  loadRecentArticles()
+})
 </script>
 
+<template>
+  <div id="homePage">
+    <!-- Hero Section -->
+    <div class="hero-section">
+      <div class="hero-bg"></div>
+      <div class="container">
+        <div class="hero-badge">
+          <ThunderboltOutlined />
+          <span>AI 驱动的内容创作平台</span>
+        </div>
+        <h1 class="hero-title">AI 爆款文章创作器</h1>
+        <p class="hero-subtitle">让每个人都能写出 10万+ 文章</p>
+
+        <!-- 核心输入框 -->
+        <div class="input-wrapper">
+          <a-input v-model:value="topic" placeholder="输入您想创作的文章选题，例如：2026年AI如何改变职场" size="large" class="topic-input"
+            @pressEnter="goToCreate">
+            <template #prefix>
+              <EditOutlined class="input-icon" />
+            </template>
+          </a-input>
+          <a-button type="primary" size="large" @click="goToCreate" class="cta-btn">
+            <RocketOutlined />
+            开始创作
+          </a-button>
+        </div>
+
+        <p class="hero-tips">工作总结、心得体会、演讲稿、分析报告... 一键生成</p>
+      </div>
+    </div>
+
+    <!-- Features Section -->
+    <div class="features-section">
+      <div class="container">
+        <div class="section-header">
+          <div class="section-badge">核心能力</div>
+          <h2 class="section-title">专业人士的一站式AI写作工具</h2>
+          <p class="section-subtitle">强大的 AI 能力，让创作变得简单高效</p>
+        </div>
+        <div class="features-grid">
+          <div v-for="(feature, index) in features" :key="index" class="feature-card">
+            <div class="feature-icon-wrapper" :style="{ background: `${feature.color}15` }">
+              <component :is="feature.icon" class="feature-icon" :style="{ color: feature.color }" />
+            </div>
+            <div class="feature-content">
+              <h3 class="feature-title">{{ feature.title }}</h3>
+              <p class="feature-description">{{ feature.description }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Articles Section -->
+    <div v-if="loginUserStore.loginUser.id && recentArticles.length > 0" class="articles-section">
+      <div class="container">
+        <div class="section-header-row">
+          <div>
+            <h2 class="section-title-sm">最近创作</h2>
+            <p class="section-subtitle-sm">查看您最近创作的文章</p>
+          </div>
+          <a-button type="link" @click="goToList" class="view-all-btn">
+            查看全部
+            <RightOutlined />
+          </a-button>
+        </div>
+
+        <a-spin :spinning="loadingArticles">
+          <div class="articles-grid">
+            <div v-for="article in recentArticles" :key="article.id" class="article-card" @click="viewArticle(article)">
+              <div class="article-cover">
+                <img v-if="article.coverImage" :src="article.coverImage" :alt="article.mainTitle" />
+                <div v-else class="cover-placeholder">
+                  <FileTextOutlined />
+                </div>
+              </div>
+              <div class="article-info">
+                <h4 class="article-title">{{ article.mainTitle || article.topic }}</h4>
+                <div class="article-meta">
+                  <span class="article-time">
+                    <ClockCircleOutlined />
+                    {{ formatTime(article.createTime) }}
+                  </span>
+                  <span :class="['article-status', `status-${article.status?.toLowerCase()}`]">
+                    {{ article.status === 'COMPLETED' ? '已完成' : article.status === 'PROCESSING' ? '生成中' : '等待中' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </a-spin>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-  .home-page {
-    padding-bottom: 52px;
-    font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+#homePage {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: var(--color-background);
+}
+
+/* Hero Section */
+.hero-section {
+  position: relative;
+  padding: 80px 20px 100px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-hero);
+  z-index: 0;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(29, 79, 145, 0.1);
+  border: 1px solid rgba(29, 79, 145, 0.2);
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 24px;
+  color: var(--color-primary-dark);
+}
+
+.hero-title {
+  font-size: 52px;
+  font-weight: 700;
+  margin: 0 0 16px;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  color: var(--color-text);
+  background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  margin: 0 0 40px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+/* 核心输入框 */
+.input-wrapper {
+  display: flex;
+  gap: 12px;
+  max-width: 700px;
+  margin: 0 auto 20px;
+  padding: 8px;
+  background: white;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border);
+}
+
+.topic-input {
+  flex: 1;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 16px;
+  padding: 8px 16px;
+  background: transparent !important;
+}
+
+.topic-input:focus {
+  box-shadow: none !important;
+}
+
+.input-icon {
+  color: var(--color-text-muted);
+  font-size: 18px;
+}
+
+.cta-btn {
+  height: 52px !important;
+  padding: 0 32px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: var(--shadow-green) !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  transition: opacity var(--transition-normal) !important;
+}
+
+.cta-btn:hover,
+.cta-btn:focus,
+.cta-btn:active {
+  background: var(--gradient-primary) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: var(--shadow-green) !important;
+  opacity: 0.92;
+}
+
+.cta-btn :deep(.ant-wave) {
+  display: none;
+}
+
+.hero-tips {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* Features Section */
+.features-section {
+  padding: 80px 20px;
+  background: var(--color-background-secondary);
+}
+
+.features-section .container {
+  max-width: 1100px;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.section-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  background: rgba(29, 79, 145, 0.1);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--color-text);
+  letter-spacing: -0.5px;
+}
+
+.section-subtitle {
+  font-size: 16px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.feature-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
+.feature-card:hover {
+  border-color: var(--color-primary-light);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.feature-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+
+.feature-icon {
+  font-size: 22px;
+}
+
+.feature-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.feature-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+  color: var(--color-text);
+}
+
+.feature-description {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Articles Section */
+.articles-section {
+  padding: 60px 20px 80px;
+  background: var(--color-background);
+}
+
+.articles-section .container {
+  max-width: 1100px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.section-title-sm {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--color-text);
+}
+
+.section-subtitle-sm {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.view-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary);
+  font-weight: 500;
+  padding: 0;
+}
+
+.view-all-btn:hover {
+  color: var(--color-primary-dark);
+}
+
+.articles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.article-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  transition: all var(--transition-normal);
+  cursor: pointer;
+}
+
+.article-card:hover {
+  border-color: var(--color-primary-light);
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+.article-cover {
+  height: 140px;
+  background: var(--color-background-tertiary);
+  overflow: hidden;
+}
+
+.article-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  color: var(--color-text-muted);
+}
+
+.article-info {
+  padding: 16px;
+}
+
+.article-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--color-text);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.article-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.article-time {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.article-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+}
+
+.article-status.status-completed {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-primary-dark);
+}
+
+.article-status.status-processing {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563EB;
+}
+
+.article-status.status-pending {
+  background: var(--color-background-tertiary);
+  color: var(--color-text-muted);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  .hero-shell {
-    width: min(1120px, calc(100% - 32px));
-    margin: 26px auto 42px;
-    border-radius: 24px;
-    padding: 52px 24px 58px;
-    text-align: center;
-    background:
-      radial-gradient(circle at 14% 14%, rgba(198, 169, 107, 0.26), rgba(198, 169, 107, 0) 36%),
-      radial-gradient(circle at 88% 0%, rgba(29, 79, 145, 0.24), rgba(29, 79, 145, 0) 34%),
-      linear-gradient(135deg, #0f2b4f 0%, #123967 52%, #0a2443 100%);
-    border: 1px solid rgba(18, 53, 95, 0.35);
-    box-shadow: 0 22px 42px rgba(10, 31, 57, 0.32);
+  .articles-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
+}
 
-  .hero-badge {
-    display: inline-block;
-    margin: 0;
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    color: #ecd7ad;
-    background: rgba(198, 169, 107, 0.2);
-    border: 1px solid rgba(198, 169, 107, 0.34);
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 60px 20px 80px;
   }
 
   .hero-title {
-    margin: 18px 0 10px;
-    font-size: clamp(30px, 4.6vw, 54px);
-    line-height: 1.14;
-    color: #f4f8ff;
-    letter-spacing: 0.02em;
+    font-size: 36px;
   }
 
   .hero-subtitle {
-    margin: 0;
     font-size: 16px;
-    color: #c8d3e4;
   }
 
-  .hero-cta {
-    width: min(780px, 100%);
-    margin: 30px auto 12px;
-    background: rgba(244, 249, 255, 0.97);
-    border-radius: 16px;
-    padding: 10px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 10px;
-    border: 1px solid rgba(18, 53, 95, 0.18);
-    box-shadow: 0 12px 30px rgba(10, 31, 57, 0.22);
+  .input-wrapper {
+    flex-direction: column;
+    padding: 12px;
   }
 
-  .topic-input {
-    border-radius: 12px;
+  .cta-btn {
+    width: 100%;
+    justify-content: center;
   }
 
-  .topic-input :deep(.ant-input) {
-    background: #ffffff;
-    border-color: rgba(18, 53, 95, 0.28);
+  .features-grid {
+    grid-template-columns: 1fr;
   }
 
-  .topic-input :deep(.ant-input:focus),
-  .topic-input :deep(.ant-input-focused) {
-    border-color: #1d4f91;
-    box-shadow: 0 0 0 2px rgba(29, 79, 145, 0.16);
+  .articles-grid {
+    grid-template-columns: 1fr;
   }
 
-  .start-btn {
-    border-radius: 12px;
-    min-width: 146px;
-    font-weight: 600;
-    border: none;
-    background: linear-gradient(140deg, #1d4f91, #153d72);
-    box-shadow: 0 9px 20px rgba(10, 31, 57, 0.34);
+  .section-title {
+    font-size: 24px;
   }
 
-  .hero-tips {
-    margin: 0;
-    color: #b4c3d9;
-    font-size: 13px;
-  }
-
-  .feature-shell {
-    width: min(1120px, calc(100% - 32px));
-    margin: 0 auto;
-  }
-
-  .section-head {
-    text-align: center;
-    margin-bottom: 24px;
-  }
-
-  .section-tag {
-    display: inline-block;
-    margin: 0 0 14px;
-    padding: 4px 12px;
-    border-radius: 999px;
-    background: rgba(198, 169, 107, 0.16);
-    color: #6a5322;
-    font-size: 12px;
-  }
-
-  .section-head h3 {
-    margin: 0;
-    color: #102743;
-    font-size: clamp(24px, 3.2vw, 38px);
-  }
-
-  .section-head p {
-    margin: 10px 0 0;
-    color: #677a90;
-  }
-
-  .feature-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .section-header-row {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 16px;
   }
-
-  .feature-card {
-    border-radius: 14px;
-    background: rgba(253, 254, 255, 0.94);
-    border: 1px solid rgba(18, 53, 95, 0.14);
-    padding: 18px;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-  }
-
-  .feature-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 16px 30px rgba(11, 33, 58, 0.16);
-  }
-
-  .feature-card h4 {
-    margin: 0 0 8px;
-    color: #153d72;
-    font-size: 18px;
-  }
-
-  .feature-card p {
-    margin: 0;
-    color: #63768d;
-    line-height: 1.7;
-    font-size: 14px;
-  }
-
-  @media (max-width: 900px) {
-    .feature-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .hero-cta {
-      grid-template-columns: 1fr;
-    }
-
-    .start-btn {
-      width: 100%;
-    }
-  }
+}
 </style>
