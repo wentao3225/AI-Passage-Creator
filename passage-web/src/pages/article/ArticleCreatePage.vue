@@ -445,6 +445,7 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, onMounted, nextTick, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+// @ts-ignore: ant-design-vue declaration file missing in current project setup
 import { message } from 'ant-design-vue'
 import { useLoginUserStore } from '@/stores/loginUser'
 import {
@@ -492,7 +493,7 @@ const exampleTopics = [
     '程序员如何提升竞争力',
     '远程办公的利与弊',
     '如何培养深度思考',
-    '新能源汽车趋势',
+    '对日开发转国内开发',
     '健康饮食指南',
 ]
 
@@ -637,9 +638,6 @@ const startCreate = async () => {
         }
         taskId.value = newTaskId
         addLog(`任务创建成功，ID: ${newTaskId}`, 'success')
-
-        // 刷新用户信息（更新配额）
-        await loginUserStore.fetchLoginUser()
 
         // 建立 SSE 连接
         addLog('已建立实时连接，开始生成...', 'info')

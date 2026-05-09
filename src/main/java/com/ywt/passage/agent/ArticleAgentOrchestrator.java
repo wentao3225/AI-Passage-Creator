@@ -47,8 +47,6 @@ public class ArticleAgentOrchestrator {
     private static final String KEY_FULL_CONTENT = "fullContent";
     private static final String KEY_ENABLED_IMAGE_METHODS = "enabledImageMethods";
     @Resource
-    private AgentConfig agentConfig;
-    @Resource
     private TitleGeneratorAgent titleGeneratorAgent;
     @Resource
     private OutlineGeneratorAgent outlineGeneratorAgent;

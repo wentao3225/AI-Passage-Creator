@@ -26,9 +26,6 @@ public class ImageGenerationTool {
     @Resource
     private ImageServiceStrategy imageServiceStrategy;
 
-    @Resource
-    private LocalImageStorageService localImageStorageService;
-
     /**
      * 根据需求生成或搜索图片
      */

@@ -38,7 +38,7 @@ public class TitleGeneratorAgent implements NodeAction {
     private final DashScopeChatModel chatModel;
 
     @Override
-    public Map<String, Object> apply(OverAllState state) throws Exception {
+    public Map<String, Object> apply(OverAllState state) {
         String topic = state.value(INPUT_TOPIC)
                 .map(Object::toString)
                 .orElseThrow(() -> new IllegalArgumentException("缺少选题参数"));
@@ -112,7 +112,7 @@ public class TitleGeneratorAgent implements NodeAction {
 
             // 直接是数组
             if (root.isJsonArray()) {
-                return GsonUtils.fromJson(root.toString(), new TypeToken<List<ArticleState.TitleOption>>() {
+                return GsonUtils.fromJson(root.toString(), new TypeToken<>() {
                 });
             }
 
@@ -122,7 +122,7 @@ public class TitleGeneratorAgent implements NodeAction {
                 JsonElement optionsElement = obj.get(OUTPUT_TITLE_OPTIONS);
                 if (optionsElement != null && optionsElement.isJsonArray()) {
                     return GsonUtils.fromJson(optionsElement.toString(),
-                            new TypeToken<List<ArticleState.TitleOption>>() {
+                            new TypeToken<>() {
                             });
                 }
                 return null;
