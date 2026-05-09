@@ -67,8 +67,8 @@
                                 <!-- 配图方式选择 -->
                                 <div class="image-methods-section">
                                     <div class="section-header">
-                                        <span class="section-title">配图方式</span>
-                                        <span class="section-tip">（不选择表示支持所有方式）</span>
+                                        <span class="section-title">允许使用的配图方式</span>
+                                        <span class="section-tip">（不选择表示允许所有方式）</span>
                                     </div>
                                     <a-checkbox-group v-model:value="selectedImageMethods" class="methods-group">
                                         <a-checkbox value="PEXELS">Pexels</a-checkbox>
@@ -503,7 +503,7 @@ const currentPhase = ref<string>('INPUT')  // INPUT, TITLE_SELECTING, OUTLINE_ED
 // 状态
 const topic = ref('')
 const selectedStyle = ref('')  // 选中的文章风格（空字符串表示默认）
-const selectedImageMethods = ref<string[]>([])  // 选中的配图方式（空数组表示全部）
+const selectedImageMethods = ref<string[]>([])  // 允许使用的配图方式（空数组表示允许全部）
 const isCreating = ref(false)
 const isCompleted = ref(false)
 const isStreaming = ref(false)

@@ -222,6 +222,9 @@ public class ArticleAsyncService {
             // 保存完整文章到数据库
             articleService.saveArticleContent(taskId, state);
 
+            // 更新阶段为已完成
+            articleService.updatePhase(taskId, ArticlePhaseEnum.COMPLETED);
+
             // 更新状态为已完成
             articleService.updateArticleStatus(taskId, ArticleStatusEnum.COMPLETED, null);
 

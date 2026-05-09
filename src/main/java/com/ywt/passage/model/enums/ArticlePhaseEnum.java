@@ -13,7 +13,8 @@ public enum ArticlePhaseEnum {
     TITLE_SELECTING("TITLE_SELECTING", "等待选择标题"),
     OUTLINE_GENERATING("OUTLINE_GENERATING", "生成大纲中"),
     OUTLINE_EDITING("OUTLINE_EDITING", "等待编辑大纲"),
-    CONTENT_GENERATING("CONTENT_GENERATING", "生成正文中");
+    CONTENT_GENERATING("CONTENT_GENERATING", "生成正文中"),
+    COMPLETED("COMPLETED", "已完成");
 
     /**
      * 阶段值
@@ -66,7 +67,8 @@ public enum ArticlePhaseEnum {
             case TITLE_SELECTING -> targetPhase == OUTLINE_GENERATING;
             case OUTLINE_GENERATING -> targetPhase == OUTLINE_EDITING;
             case OUTLINE_EDITING -> targetPhase == CONTENT_GENERATING;
-            case CONTENT_GENERATING -> false; // 最终阶段，不再转换
+            case CONTENT_GENERATING -> targetPhase == COMPLETED;
+            case COMPLETED -> false; // 最终阶段，不再转换
         };
     }
 }

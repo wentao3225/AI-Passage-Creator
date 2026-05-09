@@ -567,6 +567,7 @@ const getPhaseText = (phase?: string) => {
     OUTLINE_GENERATING: '生成大纲',
     OUTLINE_EDITING: '编辑大纲',
     CONTENT_GENERATING: '生成正文',
+    COMPLETED: '已完成',
   }
   if (!phase) {
     return '-'

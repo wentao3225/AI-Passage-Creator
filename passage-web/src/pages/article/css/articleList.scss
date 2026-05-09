@@ -379,6 +379,12 @@
       border-color: var(--color-border);
       background: var(--color-background-tertiary);
     }
+
+    &.phase-completed {
+      color: #15803d;
+      border-color: rgba(21, 128, 61, 0.24);
+      background: rgba(21, 128, 61, 0.08);
+    }
   }
 
   .count-text {

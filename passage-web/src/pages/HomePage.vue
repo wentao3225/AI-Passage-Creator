@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLoginUserStore } from '@/stores/loginUser'
 import { listArticle } from '@/api/articleController'
@@ -120,10 +120,20 @@ const features = [
   }
 ]
 
-onMounted(() => {
-  // 首页加载后尝试拉取最近文章
-  loadRecentArticles()
-})
+watch(
+  () => loginUserStore.loginUser.id,
+  (userId) => {
+    // 登录态是异步回填的，首页需要在用户 id 到位后补拉一次最近文章。
+    if (userId) {
+      loadRecentArticles()
+      return
+    }
+
+    // 退出登录或未登录时清空上一个用户的首页数据，避免残留。
+    recentArticles.value = []
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
