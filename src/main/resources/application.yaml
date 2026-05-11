@@ -90,7 +90,7 @@ svg-diagram:
   default-width: 800
   default-height: 600
   folder: "svg-diagrams"
-  max-concurrency: 2
+  max-concurrency: 3
 # 文章智能体配置
 article:
   agent:

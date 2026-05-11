@@ -62,19 +62,7 @@ public class ImageAnalyzerAgent implements NodeAction {
 
         log.info("ImageAnalyzerAgent 开始执行: mainTitle={}, enabledMethods={}", mainTitle, enabledMethods);
 
-        // 这两段文本会直接拼进 prompt：
-        // 1. allowedMethods 告诉模型“只能用哪些来源”；
-        // 2. methodUsageGuide 告诉模型“每种来源该填哪个字段”。
-        String availableMethods = buildAvailableMethodsDescription(enabledMethods);
-        log.info("ImageAnalyzerAgent 构建可用配图方式说明: {}", availableMethods);
-        String methodUsageGuide = buildMethodUsageGuide(enabledMethods);
-
-        // 将文章内容和配图约束注入统一模板，让 LLM 输出“正文占位符 + 配图需求列表”。
-        String prompt = PromptConstant.AGENT4_IMAGE_REQUIREMENTS_PROMPT
-                .replace("{mainTitle}", mainTitle)
-                .replace("{content}", content)
-                .replace("{availableMethods}", availableMethods)
-                .replace("{methodUsageGuide}", methodUsageGuide);
+        String prompt = buildImageRequirementsPrompt(mainTitle, content, enabledMethods);
 
         // 先让 LLM 负责“想方案”，后面的 Java 逻辑再负责“把方案清洗成可执行格式”。
         ChatResponse response = chatModel.call(new Prompt(new UserMessage(prompt)));
@@ -115,6 +103,39 @@ public class ImageAnalyzerAgent implements NodeAction {
                 OUTPUT_CONTENT_WITH_PLACEHOLDERS, contentWithPlaceholders,
                 INPUT_CONTENT, contentWithPlaceholders,
                 OUTPUT_IMAGE_REQUIREMENTS, validatedRequirements);
+    }
+
+    private String buildImageRequirementsPrompt(String mainTitle,
+                                               String content,
+                                               List<String> enabledMethods) {
+        if (enabledMethods != null && enabledMethods.size() == 1) {
+            String fixedMethod = enabledMethods.getFirst();
+            ImageMethodEnum methodEnum = ImageMethodEnum.getByValue(fixedMethod);
+            String methodDescription = methodEnum == null ? fixedMethod : getMethodUsageDescription(methodEnum);
+            String methodUsageGuide = buildMethodUsageGuide(enabledMethods);
+
+            log.info("ImageAnalyzerAgent 启用单来源快速提示词: method={}", fixedMethod);
+            return PromptConstant.AGENT4_SINGLE_METHOD_IMAGE_REQUIREMENTS_PROMPT
+                    .replace("{mainTitle}", mainTitle)
+                    .replace("{content}", content)
+                    .replace("{fixedMethod}", fixedMethod)
+                    .replace("{fixedMethodDescription}", methodDescription)
+                    .replace("{methodUsageGuide}", methodUsageGuide);
+        }
+
+        // 这两段文本会直接拼进 prompt：
+        // 1. allowedMethods 告诉模型“只能用哪些来源”；
+        // 2. methodUsageGuide 告诉模型“每种来源该填哪个字段”。
+        String availableMethods = buildAvailableMethodsDescription(enabledMethods);
+        log.info("ImageAnalyzerAgent 构建可用配图方式说明: {}", availableMethods);
+        String methodUsageGuide = buildMethodUsageGuide(enabledMethods);
+
+        // 将文章内容和配图约束注入统一模板，让 LLM 输出“正文占位符 + 配图需求列表”。
+        return PromptConstant.AGENT4_IMAGE_REQUIREMENTS_PROMPT
+                .replace("{mainTitle}", mainTitle)
+                .replace("{content}", content)
+                .replace("{availableMethods}", availableMethods)
+                .replace("{methodUsageGuide}", methodUsageGuide);
     }
 
     /**

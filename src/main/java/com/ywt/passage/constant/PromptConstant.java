@@ -217,6 +217,61 @@ public interface PromptConstant {
       """;
 
   /**
+   * 智能体4：单一配图来源时的轻量需求分析 Prompt
+   */
+  String AGENT4_SINGLE_METHOD_IMAGE_REQUIREMENTS_PROMPT = """
+      你是一位专业的新媒体编辑,擅长为文章配图。
+
+      根据以下文章内容,分析配图需求,并在正文中插入图片占位符:
+      主标题：{mainTitle}
+      正文：
+      {content}
+
+      本次任务固定只能使用一种配图方式：{fixedMethod}
+      该方式说明：{fixedMethodDescription}
+
+      要求:
+      1. 识别需要配图的位置(封面、关键章节、段落之间等)
+      2. 根据文章内容和结构灵活决定配图数量，避免过多或过少
+      3. 不要再判断或比较图片来源，所有 imageSource 必须固定写成 {fixedMethod}
+      4. **在正文中插入占位符**：
+         - 普通图片占位符使用 {{IMAGE_PLACEHOLDER_N}}，其中 N 为配图序号（1, 2, 3...），必须独占一行
+         - Icon 占位符只在 {fixedMethod} 为 ICONIFY 时才可使用，格式为 {{ICON_PLACEHOLDER_N}}
+         - position=1 的封面图不需要占位符，不要放在正文中
+      5. 严格按照以下方式填写字段：
+        {methodUsageGuide}
+      6. placeholderId 必须与正文中插入的占位符完全一致
+      7. position=1 为封面图
+      8. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
+      9. 不要把 JSON 包在字符串里，不要返回解释文本
+
+      请直接返回 JSON 格式,不要有其他内容:
+      {
+        "contentWithPlaceholders": "## 章节标题1\\n\\n第一段内容介绍核心概念。\\n\\n{{IMAGE_PLACEHOLDER_1}}\\n\\n第二段深入分析。\\n\\n## 章节标题2\\n\\n第三段阐述应用场景。\\n\\n{{IMAGE_PLACEHOLDER_2}}\\n\\n第四段总结要点。",
+        "imageRequirements": [
+          {
+            "position": 1,
+            "type": "cover",
+            "sectionTitle": "",
+            "imageSource": "{fixedMethod}",
+            "keywords": "",
+            "prompt": "围绕文章主题生成适合作为封面的配图描述",
+            "placeholderId": ""
+          },
+          {
+            "position": 2,
+            "type": "section",
+            "sectionTitle": "章节标题1",
+            "imageSource": "{fixedMethod}",
+            "keywords": "",
+            "prompt": "围绕章节核心观点生成配图描述",
+            "placeholderId": "{{IMAGE_PLACEHOLDER_1}}"
+          }
+        ]
+      }
+      """;
+
+  /**
    * SVG 概念示意图生成 Prompt
    */
   String SVG_DIAGRAM_GENERATION_PROMPT = """
