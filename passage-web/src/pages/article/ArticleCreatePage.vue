@@ -524,6 +524,10 @@ interface RealtimeLog {
     message: string
 }
 const realtimeLogs = ref<RealtimeLog[]>([])
+const hasLoggedOutlineStart = ref(false)
+const hasLoggedContentStart = ref(false)
+const hasLoggedImageAnalysisStart = ref(false)
+const hasLoggedImageGenerationStart = ref(false)
 
 // 标题方案
 const titleOptions = ref<Array<{ mainTitle: string, subTitle: string }>>([])
@@ -626,6 +630,7 @@ const startCreate = async () => {
     isCreating.value = true
     currentStep.value = 0
     realtimeLogs.value = []
+    resetStageLogFlags()
     addLog('开始创建文章任务...', 'info')
 
     try {
@@ -669,6 +674,13 @@ const addLog = (message: string, level: string = 'info') => {
     }
 }
 
+const resetStageLogFlags = () => {
+    hasLoggedOutlineStart.value = false
+    hasLoggedContentStart.value = false
+    hasLoggedImageAnalysisStart.value = false
+    hasLoggedImageGenerationStart.value = false
+}
+
 // 格式化日志时间
 const formatLogTime = (timestamp: number) => {
     const date = new Date(timestamp)
@@ -705,6 +717,10 @@ const handleSSEMessage = (msg: SSEMessage) => {
             // 大纲流式输出（显示生成中状态）
             currentPhase.value = 'OUTLINE_GENERATING'
             isOutlineStreaming.value = true
+            if (!hasLoggedOutlineStart.value) {
+                hasLoggedOutlineStart.value = true
+                addLog('智能体2：开始生成大纲', 'info')
+            }
             outlineRaw.value += msg.content || ''
             scrollToBottom()
             break
@@ -715,7 +731,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
             outline.value = msg.outline || []
             isCreating.value = false
             isOutlineStreaming.value = false
-            addLog('大纲生成完成，等待确认', 'success')
+            addLog('智能体2：大纲生成完成，等待确认', 'success')
             // 保持在步骤1（规划大纲），用户编辑大纲时仍处于此阶段
             break
 
@@ -729,6 +745,10 @@ const handleSSEMessage = (msg: SSEMessage) => {
             currentPhase.value = 'CONTENT_GENERATING'
             currentStep.value = 2
             isStreaming.value = true
+            if (!hasLoggedContentStart.value) {
+                hasLoggedContentStart.value = true
+                addLog('智能体3：开始生成正文', 'info')
+            }
             article.value.content += msg.content || ''
             scrollToBottom()
             break
@@ -738,21 +758,29 @@ const handleSSEMessage = (msg: SSEMessage) => {
             isStreaming.value = false
             currentStep.value = 3
             message.info('正文生成完成，正在分析配图...')
-            addLog('正文生成完成', 'success')
+            addLog('智能体3：正文生成完成', 'success')
+            if (!hasLoggedImageAnalysisStart.value) {
+                hasLoggedImageAnalysisStart.value = true
+                addLog('智能体4：开始分析配图需求', 'info')
+            }
             break
 
         case 'AGENT4_COMPLETE':
             // 配图分析完成，进入配图生成步骤
             currentStep.value = 4
             totalImages.value = msg.imageRequirements?.length || 5
-            addLog(`配图需求分析完成，共 ${totalImages.value} 张`, 'success')
+            addLog(`智能体4：配图需求分析完成，共 ${totalImages.value} 张`, 'success')
+            if (!hasLoggedImageGenerationStart.value) {
+                hasLoggedImageGenerationStart.value = true
+                addLog('智能体5：开始生成配图', 'info')
+            }
             break
 
         case 'IMAGE_COMPLETE':
             // 单张配图完成
             imageCount.value++
             imageProgress.value = Math.round((imageCount.value / totalImages.value) * 100)
-            addLog(`配图生成中 ${imageCount.value}/${totalImages.value}`, 'info')
+            addLog(`智能体5：配图生成中 ${imageCount.value}/${totalImages.value}`, 'info')
             break
 
         case 'AGENT5_COMPLETE':
@@ -760,7 +788,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
             currentStep.value = 5
             article.value.images = msg.images
             message.success('配图生成完成，正在合成图文...')
-            addLog('所有配图生成完成', 'success')
+            addLog('智能体5：所有配图生成完成', 'success')
             break
 
         case 'MERGE_COMPLETE':
@@ -825,6 +853,8 @@ const handleConfirmTitle = async (data: { mainTitle: string, subTitle: string, u
         article.value.subTitle = data.subTitle
         // 不直接切换阶段，等待 SSE 消息 OUTLINE_GENERATED
         message.success('标题已确认，正在生成大纲...')
+        hasLoggedOutlineStart.value = true
+        addLog('智能体2：开始生成大纲', 'info')
     } catch (error) {
         const err = error as Error
         message.error(err.message || '确认标题失败')
@@ -845,6 +875,10 @@ const handleConfirmOutline = async (outlineData: Array<{ section: number, title:
         outlineRaw.value = JSON.stringify({ sections: outlineData })
         // 不直接切换阶段，等待后端开始生成正文并推送 AGENT3_STREAMING
         message.success('大纲已确认，正在生成正文...')
+        hasLoggedContentStart.value = true
+        hasLoggedImageAnalysisStart.value = false
+        hasLoggedImageGenerationStart.value = false
+        addLog('智能体3：开始生成正文', 'info')
     } catch (error) {
         const err = error as Error
         message.error(err.message || '确认大纲失败')
@@ -900,6 +934,7 @@ const resetCreate = () => {
     confirmLoading.value = false
     regenerateTitleLoading.value = false
     realtimeLogs.value = []
+    resetStageLogFlags()
     article.value = {
         mainTitle: '',
         subTitle: '',
