@@ -172,14 +172,18 @@
                         </div>
 
                         <!-- 配图进度 -->
-                        <div v-if="currentStep === 4 && imageProgress > 0" class="image-progress-box">
+                        <div v-if="currentStep >= 4 && currentStep <= 5 && totalImages > 0" class="image-progress-box">
                             <div class="progress-header">
                                 <PictureOutlined />
-                                <span>正在生成配图</span>
+                                <span>{{ currentStep === 5 ? '配图生成完成，正在合成图文' : '正在生成配图' }}</span>
                             </div>
-                            <a-progress :percent="imageProgress" status="active"
+                            <a-progress :percent="imageProgress" :status="currentStep === 5 ? 'success' : 'active'"
                                 :stroke-color="{ from: '#22C55E', to: '#16A34A' }" />
-                            <p class="progress-hint">{{ imageCount }}/{{ totalImages }} 张图片已完成</p>
+                            <p class="progress-hint">
+                                {{ currentStep === 5
+                                    ? `${imageCount}/${totalImages} 张图片已完成，正在合成正文`
+                                    : `${imageCount}/${totalImages} 张图片已完成` }}
+                            </p>
                         </div>
 
                         <!-- 加载占位 -->
@@ -768,6 +772,8 @@ const handleSSEMessage = (msg: SSEMessage) => {
         case 'AGENT4_COMPLETE':
             // 配图分析完成，进入配图生成步骤
             currentStep.value = 4
+            imageCount.value = 0
+            imageProgress.value = 0
             totalImages.value = msg.imageRequirements?.length || 5
             addLog(`智能体4：配图需求分析完成，共 ${totalImages.value} 张`, 'success')
             if (!hasLoggedImageGenerationStart.value) {
