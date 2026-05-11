@@ -279,6 +279,21 @@ public class ArticleAsyncService {
             return buildImageCompleteData(imageJson);
         }
 
+        // 编排模式下，AGENT4_COMPLETE 附带了配图数量（格式 "AGENT4_COMPLETE:<count>"），
+        // 此时 ArticleState.imageRequirements 尚未被 LangGraph 写回，需直接从消息中取数量。
+        String agent4CompletePrefix = SseMessageTypeEnum.AGENT4_COMPLETE.getValue() + ":";
+        if (message.startsWith(agent4CompletePrefix)) {
+            String countStr = message.substring(agent4CompletePrefix.length());
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", SseMessageTypeEnum.AGENT4_COMPLETE.getValue());
+            try {
+                data.put("imageTotal", Integer.parseInt(countStr));
+            } catch (NumberFormatException e) {
+                log.warn("AGENT4_COMPLETE 消息数量解析失败, raw={}", countStr);
+            }
+            return data;
+        }
+
         // 处理完成消息（枚举值）
         return buildCompleteMessageData(message, state);
     }

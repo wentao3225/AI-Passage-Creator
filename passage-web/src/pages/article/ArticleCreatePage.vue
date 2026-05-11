@@ -774,7 +774,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
             currentStep.value = 4
             imageCount.value = 0
             imageProgress.value = 0
-            totalImages.value = msg.imageRequirements?.length || 5
+            totalImages.value = msg.imageTotal ?? msg.imageRequirements?.length ?? 5
             addLog(`智能体4：配图需求分析完成，共 ${totalImages.value} 张`, 'success')
             if (!hasLoggedImageGenerationStart.value) {
                 hasLoggedImageGenerationStart.value = true

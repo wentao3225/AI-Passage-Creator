@@ -96,7 +96,9 @@ public class ImageAnalyzerAgent implements NodeAction {
                 validatedRequirements.size());
 
         // 编排模式下在配图需求节点结束时立即通知前端，避免后续图片开始生成后状态仍停在正文阶段。
-        StreamHandlerContext.send(SseMessageTypeEnum.AGENT4_COMPLETE.getValue());
+        // 将配图数量拼在消息后面（格式 "AGENT4_COMPLETE:<count>"），供后端在推送 SSE 时直接使用，
+        // 避免此时 ArticleState.imageRequirements 尚未被 LangGraph 框架写回而导致前端读到 null。
+        StreamHandlerContext.send(SseMessageTypeEnum.AGENT4_COMPLETE.getValue() + ":" + validatedRequirements.size());
 
         // 返回结果
         return Map.of(
