@@ -42,12 +42,19 @@
         </template>
         确认并生成大纲
       </a-button>
+      <a-button size="large" :loading="regenerateLoading" :disabled="loading" @click="handleRegenerate"
+        class="refresh-btn">
+        <template #icon>
+          <RedoOutlined />
+        </template>
+        再来一批
+      </a-button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { CheckOutlined } from '@ant-design/icons-vue'
 
 interface TitleOption {
@@ -58,6 +65,7 @@ interface TitleOption {
 interface Props {
   titleOptions: TitleOption[]
   loading?: boolean
+  regenerateLoading?: boolean
 }
 
 interface Emits {
@@ -66,10 +74,12 @@ interface Emits {
     subTitle: string
     userDescription: string
   }): void
+  (e: 'regenerate'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false
+  loading: false,
+  regenerateLoading: false
 })
 
 const emit = defineEmits<Emits>()
@@ -84,6 +94,12 @@ const canConfirm = computed(() => {
     return customMainTitle.value.trim() && customSubTitle.value.trim()
   }
   return selectedIndex.value >= 0 && selectedIndex.value < props.titleOptions.length
+})
+
+watch(() => props.titleOptions, () => {
+  selectedIndex.value = 0
+  customMainTitle.value = ''
+  customSubTitle.value = ''
 })
 
 const handleConfirm = () => {
@@ -109,6 +125,10 @@ const handleConfirm = () => {
     subTitle,
     userDescription: userDescription.value
   })
+}
+
+const handleRegenerate = () => {
+  emit('regenerate')
 }
 </script>
 
@@ -226,6 +246,8 @@ const handleConfirm = () => {
 .actions {
   display: flex;
   justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .confirm-btn {

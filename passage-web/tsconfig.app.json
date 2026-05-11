@@ -2,6 +2,9 @@
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {
+    // Disable emitting output during `vue-tsc --build`, which is used for type-checking only.
+    "noEmit": true,
+
     // Extra safety for array and object lookups, but may have false positives.
     "noUncheckedIndexedAccess": true,
 

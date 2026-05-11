@@ -75,6 +75,9 @@ public class ContentGeneratorAgent implements NodeAction {
         
         // 调用 LLM（流式输出）
         String content = callLlmWithStreaming(prompt, streamHandler);
+
+        // 编排模式下需要在正文节点结束时立刻通知前端，避免等整条 phase3 执行完才切步骤。
+        StreamHandlerContext.send(SseMessageTypeEnum.AGENT3_COMPLETE.getValue());
         
         log.info("ContentGeneratorAgent 执行完成: 正文长度={}", content.length());
         

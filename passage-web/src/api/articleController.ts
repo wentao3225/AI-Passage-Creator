@@ -64,6 +64,21 @@ export async function confirmTitle(
   });
 }
 
+
+/** 重新生成标题方案 POST /article/regenerate-titles */
+export async function regenerateTitles(
+  body: API.ArticleRegenerateTitlesRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseVoid>("/article/regenerate-titles", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
 /** 创建文章任务 POST /article/create */
 export async function createArticle(
   body: API.ArticleCreateRequest,

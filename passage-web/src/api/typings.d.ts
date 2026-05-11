@@ -57,6 +57,10 @@ declare namespace API {
     status?: string;
   };
 
+  type ArticleRegenerateTitlesRequest = {
+    taskId?: string;
+  };
+
   type ArticleVO = {
     id?: number;
     taskId?: string;

@@ -7,6 +7,7 @@ import com.ywt.passage.common.DeleteRequest;
 import com.ywt.passage.common.ResultUtils;
 import com.ywt.passage.core.manager.SseEmitterManager;
 import com.ywt.passage.core.service.ArticleAsyncService;
+import com.ywt.passage.entity.Article;
 import com.ywt.passage.entity.User;
 import com.ywt.passage.exception.ErrorCode;
 import com.ywt.passage.exception.ThrowUtils;
@@ -110,6 +111,25 @@ public class ArticleController {
 
         return ResultUtils.success(null);
     }
+
+        /**
+         * 重新生成标题方案
+         */
+        @PostMapping("/regenerate-titles")
+        @Operation(summary = "重新生成标题方案")
+        public BaseResponse<Void> regenerateTitles(@RequestBody ArticleRegenerateTitlesRequest request,
+                                                                                           HttpServletRequest httpServletRequest) {
+                ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
+                ThrowUtils.throwIf(request.getTaskId() == null || request.getTaskId().trim().isEmpty(),
+                                ErrorCode.PARAMS_ERROR, "任务ID不能为空");
+
+                User loginUser = userService.getLoginUser(httpServletRequest);
+
+                Article article = articleService.prepareTitleRegeneration(request.getTaskId(), loginUser);
+                articleAsyncService.executePhase1(article.getTaskId(), article.getTopic(), article.getStyle());
+
+                return ResultUtils.success(null);
+        }
 
     /**
      * 确认大纲

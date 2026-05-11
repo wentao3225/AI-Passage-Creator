@@ -84,7 +84,7 @@
                                     <template #icon>
                                         <RocketOutlined />
                                     </template>
-                                    开始创作
+                                    {{ isCreating ? '正在生成标题中...' : '开始创作' }}
                                 </a-button>
                             </div>
                         </div>
@@ -99,7 +99,9 @@
 
                     <!-- 标题选择阶段 -->
                     <TitleSelectingStage v-else-if="currentPhase === 'TITLE_SELECTING'" key="title-selecting"
-                        :title-options="titleOptions" :loading="confirmLoading" @confirm="handleConfirmTitle" />
+                        :title-options="titleOptions" :loading="confirmLoading"
+                        :regenerate-loading="regenerateTitleLoading" @confirm="handleConfirmTitle"
+                        @regenerate="handleRegenerateTitles" />
 
                     <!-- 大纲生成中（流式展示） -->
                     <div v-else-if="currentPhase === 'OUTLINE_GENERATING'" key="outline-generating"
@@ -467,7 +469,7 @@ import {
     PictureOutlined,
     FileTextOutlined
 } from '@ant-design/icons-vue'
-import { createArticle, confirmTitle, confirmOutline } from '@/api/articleController'
+import { createArticle, confirmTitle, confirmOutline, regenerateTitles } from '@/api/articleController'
 import { connectSSE, closeSSE, type SSEMessage } from '@/utils/sse'
 import { marked } from 'marked'
 import TitleSelectingStage from './components/TitleSelectingStage.vue'
@@ -513,6 +515,7 @@ const taskId = ref('')
 const errorVisible = ref(false)
 const errorMessage = ref('')
 const confirmLoading = ref(false)
+const regenerateTitleLoading = ref(false)
 
 // 实时日志
 interface RealtimeLog {
@@ -679,17 +682,23 @@ const handleSSEMessage = (msg: SSEMessage) => {
     switch (msg.type) {
         case 'AGENT1_COMPLETE':
             // 智能体1完成，进入标题生成阶段（显示加载）
-            currentPhase.value = 'TITLE_GENERATING'
+            if (!regenerateTitleLoading.value) {
+                currentPhase.value = 'TITLE_GENERATING'
+            }
             currentStep.value = 1
-            addLog('智能体1：标题方案生成完成', 'success')
+            addLog(regenerateTitleLoading.value ? '智能体1：新一批标题方案生成完成' : '智能体1：标题方案生成完成', 'success')
             break
 
         case 'TITLES_GENERATED':
             // 标题方案生成完成，切换到选择标题阶段
+            const wasRegeneratingTitles = regenerateTitleLoading.value
             currentPhase.value = 'TITLE_SELECTING'
             titleOptions.value = msg.titleOptions || []
             isCreating.value = false
-            addLog(`生成了 ${msg.titleOptions?.length || 0} 个标题方案`, 'success')
+            regenerateTitleLoading.value = false
+            addLog(wasRegeneratingTitles
+                ? `已生成新一批标题方案，共 ${msg.titleOptions?.length || 0} 个`
+                : `生成了 ${msg.titleOptions?.length || 0} 个标题方案`, 'success')
             break
 
         case 'AGENT2_STREAMING':
@@ -728,6 +737,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
             // 正文完成，进入配图分析步骤
             isStreaming.value = false
             currentStep.value = 3
+            message.info('正文生成完成，正在分析配图...')
             addLog('正文生成完成', 'success')
             break
 
@@ -749,6 +759,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
             // 所有配图完成，进入图文合成步骤
             currentStep.value = 5
             article.value.images = msg.images
+            message.success('配图生成完成，正在合成图文...')
             addLog('所有配图生成完成', 'success')
             break
 
@@ -772,9 +783,30 @@ const handleSSEMessage = (msg: SSEMessage) => {
             errorMessage.value = msg.message || '创作失败'
             errorVisible.value = true
             isCreating.value = false
+            regenerateTitleLoading.value = false
             currentPhase.value = 'INPUT'
             addLog(`创作失败: ${msg.message || '未知错误'}`, 'error')
             break
+    }
+}
+
+const handleRegenerateTitles = async () => {
+    if (!taskId.value) {
+        return
+    }
+
+    regenerateTitleLoading.value = true
+    addLog('正在重新生成标题方案...', 'info')
+
+    try {
+        await regenerateTitles({
+            taskId: taskId.value,
+        })
+    } catch (error) {
+        regenerateTitleLoading.value = false
+        const err = error as Error
+        message.error(err.message || '重新生成标题失败')
+        addLog(`重新生成标题失败: ${err.message || '未知错误'}`, 'error')
     }
 }
 
@@ -826,6 +858,7 @@ const handleSSEError = (error: Event) => {
     console.error('SSE错误:', error)
     message.error('连接失败,请重试')
     isCreating.value = false
+    regenerateTitleLoading.value = false
 }
 
 // 处理 SSE 完成
@@ -865,6 +898,7 @@ const resetCreate = () => {
     imageProgress.value = 0
     outlineRaw.value = ''
     confirmLoading.value = false
+    regenerateTitleLoading.value = false
     realtimeLogs.value = []
     article.value = {
         mainTitle: '',

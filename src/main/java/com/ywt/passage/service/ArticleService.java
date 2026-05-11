@@ -92,6 +92,15 @@ public interface ArticleService extends IService<Article> {
     void confirmTitle(String taskId, String mainTitle, String subTitle, String userDescription, User loginUser);
 
     /**
+     * 校验并准备重新生成标题。
+     *
+     * @param taskId    任务ID
+     * @param loginUser 当前登录用户
+     * @return 当前文章记录（包含选题与风格）
+     */
+    Article prepareTitleRegeneration(String taskId, User loginUser);
+
+    /**
      * 确认大纲（用户编辑后）
      *
      * @param taskId    任务ID

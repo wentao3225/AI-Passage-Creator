@@ -14,9 +14,9 @@ import com.ywt.passage.exception.ThrowUtils;
 import com.ywt.passage.mapper.ArticleMapper;
 import com.ywt.passage.model.dto.article.ArticleQueryRequest;
 import com.ywt.passage.model.dto.article.ArticleState;
-import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.enums.ArticlePhaseEnum;
 import com.ywt.passage.model.enums.ArticleStatusEnum;
+import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.vo.ArticleVO;
 import com.ywt.passage.service.ArticleService;
 import com.ywt.passage.utils.GsonUtils;
@@ -27,7 +27,6 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Collectors;
 
 import static com.ywt.passage.constant.UserConstant.ADMIN_ROLE;
@@ -80,9 +79,9 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         List<String> validMethods = enabledImageMethods.stream()
                 .map(String::trim)
                 .filter(StringUtils::hasText)
-            .map(ImageMethodEnum::getByValue)
-            .filter(method -> method != null && !method.isFallback())
-            .map(ImageMethodEnum::getValue)
+                .map(ImageMethodEnum::getByValue)
+                .filter(method -> method != null && !method.isFallback())
+                .map(ImageMethodEnum::getValue)
                 .distinct()
                 .collect(Collectors.toList());
 
@@ -197,6 +196,31 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         this.updateById(article);
         log.info("文章标题已确认, taskId={}, mainTitle={}, subTitle={}, userDescription={}",
                 taskId, mainTitle, subTitle, userDescription);
+    }
+
+    /**
+     * 校验并准备重新生成标题。
+     *
+     * @param taskId    任务ID
+     * @param loginUser 当前登录用户
+     * @return 当前文章记录（包含选题与风格）
+     */
+    @Override
+    public Article prepareTitleRegeneration(String taskId, User loginUser) {
+        Article article = getByTaskId(taskId);
+        ThrowUtils.throwIf(article == null, ErrorCode.NOT_FOUND_ERROR, "文章记录不存在");
+        checkArticlePermission(article, loginUser);
+
+        ArticlePhaseEnum currentPhase = ArticlePhaseEnum.getByValue(article.getPhase());
+        ThrowUtils.throwIf(!ArticlePhaseEnum.TITLE_SELECTING.equals(currentPhase),
+                ErrorCode.OPERATION_ERROR, "当前阶段不允许重新生成标题");
+
+        article.setPhase(ArticlePhaseEnum.TITLE_GENERATING.getValue());
+        this.updateById(article);
+
+        log.info("准备重新生成标题, taskId={}, topic={}, style={}",
+                taskId, article.getTopic(), article.getStyle());
+        return article;
     }
 
     /**

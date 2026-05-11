@@ -208,11 +208,9 @@ public class ArticleAgentOrchestrator {
                 } else if (content != null) {
                     state.setContent(content);
                 }
-                streamHandler.accept(SseMessageTypeEnum.AGENT3_COMPLETE.getValue());
 
                 if (imageRequirements != null) {
                     state.setImageRequirements(imageRequirements);
-                    streamHandler.accept(SseMessageTypeEnum.AGENT4_COMPLETE.getValue());
                 }
 
                 if (images != null) {

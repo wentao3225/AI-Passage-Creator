@@ -148,13 +148,6 @@ public interface PromptConstant {
       主标题：{mainTitle}
       正文：
       {content}
-      
-      所有配图方式有以下几种:
-         - PEXELS: 适合真实场景、产品照片、人物照片、自然风景等写实图片
-         - MERMAID: 适合流程图、架构图、时序图、关系图、甘特图等结构化图表
-         - ICONIFY: 适合图标、符号、小型装饰性图标（如：箭头、勾选、星星、心形等）
-         - EMOJI_PACK: 适合表情包、搞笑图片、轻松幽默的配图
-         - SVG_DIAGRAM: 适合概念示意图、思维导图样式、逻辑关系展示（不涉及精确数据）
 
       当前任务允许使用的配图方式（未列出的方式全部视为禁用）：
       {availableMethods}

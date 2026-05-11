@@ -6,9 +6,11 @@ import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.ywt.passage.agent.StreamHandlerContext;
 import com.ywt.passage.constant.PromptConstant;
 import com.ywt.passage.model.dto.article.ArticleState;
 import com.ywt.passage.model.enums.ImageMethodEnum;
+import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import com.ywt.passage.utils.GsonUtils;
 import com.ywt.passage.utils.LlmJsonUtils;
 import lombok.RequiredArgsConstructor;
@@ -97,13 +99,16 @@ public class ImageAnalyzerAgent implements NodeAction {
         // - 必要字段不能为空
         // - 必要时替换为更合适的允许来源
         List<ArticleState.ImageRequirement> validatedRequirements = validateAndFilterImageRequirements(
-            agent4Result.getImageRequirements(),
-            enabledMethods,
-            mainTitle);
+                agent4Result.getImageRequirements(),
+                enabledMethods,
+                mainTitle);
 
         log.info("ImageAnalyzerAgent 执行完成: 配图需求数量={}, 验证后数量={}",
                 agent4Result.getImageRequirements() == null ? 0 : agent4Result.getImageRequirements().size(),
                 validatedRequirements.size());
+
+        // 编排模式下在配图需求节点结束时立即通知前端，避免后续图片开始生成后状态仍停在正文阶段。
+        StreamHandlerContext.send(SseMessageTypeEnum.AGENT4_COMPLETE.getValue());
 
         // 返回结果
         return Map.of(
@@ -112,6 +117,12 @@ public class ImageAnalyzerAgent implements NodeAction {
                 OUTPUT_IMAGE_REQUIREMENTS, validatedRequirements);
     }
 
+    /**
+     * 解析模型返回的 JSON 结构
+     *
+     * @param rawContent 模型返回的 JSON 结构
+     * @return 解析结果，解析失败返回 null
+     */
     private ArticleState.Agent4Result parseAgent4Result(String rawContent) {
         if (!StringUtils.hasText(rawContent)) {
             return null;
@@ -143,6 +154,12 @@ public class ImageAnalyzerAgent implements NodeAction {
         return null;
     }
 
+    /**
+     * 尝试从 JSON 中解析结果
+     *
+     * @param json JSON 内容
+     * @return 解析结果，解析失败返回 null
+     */
     private ArticleState.Agent4Result tryParseAgent4ResultFromJson(String json) {
         if (!StringUtils.hasText(json)) {
             return null;
@@ -198,6 +215,12 @@ public class ImageAnalyzerAgent implements NodeAction {
         return null;
     }
 
+    /**
+     * 验证 Agent4Result 结果
+     *
+     * @param result 待验证的 Agent4Result 结果
+     * @return 是否有效
+     */
     private boolean isValidAgent4Result(ArticleState.Agent4Result result) {
         return result != null && StringUtils.hasText(result.getContentWithPlaceholders());
     }
@@ -315,6 +338,14 @@ public class ImageAnalyzerAgent implements NodeAction {
         return validatedRequirements;
     }
 
+    /**
+     * 尝试修复 requirement
+     *
+     * @param requirement    图片需求
+     * @param allowedMethods 允许的来源
+     * @param mainTitle      文章标题
+     * @return 修复后的 requirement，如果修复失败则返回 null
+     */
     private ArticleState.ImageRequirement resolveRequirement(ArticleState.ImageRequirement requirement,
                                                              List<ImageMethodEnum> allowedMethods,
                                                              String mainTitle) {
@@ -352,6 +383,12 @@ public class ImageAnalyzerAgent implements NodeAction {
         return null;
     }
 
+    /**
+     * 标准化允许的配图方式
+     *
+     * @param enabledMethods 允许的配图方式
+     * @return 标准化后的允许的配图方式
+     */
     private List<ImageMethodEnum> normalizeEnabledMethods(List<String> enabledMethods) {
         if (enabledMethods == null || enabledMethods.isEmpty()) {
             return List.of();
@@ -411,8 +448,8 @@ public class ImageAnalyzerAgent implements NodeAction {
     }
 
     private void fillMissingRequirementFields(ArticleState.ImageRequirement requirement,
-                                             ImageMethodEnum method,
-                                             String mainTitle) {
+                                              ImageMethodEnum method,
+                                              String mainTitle) {
         // type 缺失时做最小推断，避免下游只能拿到“第几张图”却不知道它属于封面/正文/行内图标。
         if (!StringUtils.hasText(requirement.getType())) {
             if (isCoverPosition(requirement)) {
