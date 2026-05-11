@@ -85,6 +85,12 @@ iconify:
   search-limit: 10
   default-height: 64
   default-color: "" # 留空使用 currentColor，或设置如 "#000000"
+# svg-diagram
+svg-diagram:
+  default-width: 800
+  default-height: 600
+  folder: "svg-diagrams"
+  max-concurrency: 2
 # 文章智能体配置
 article:
   agent:

@@ -29,4 +29,9 @@ public class SvgDiagramConfig {
      * COS 存储文件夹
      */
     private String folder = "svg-diagrams";
+
+    /**
+     * SVG 同源并发上限
+     */
+    private Integer maxConcurrency = 2;
 }

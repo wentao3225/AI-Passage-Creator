@@ -29,9 +29,6 @@ import static com.ywt.passage.constant.ArticleConstant.PICSUM_URL_TEMPLATE;
 public class SvgDiagramService implements ImageSearchService {
 
     @Resource
-    private SvgDiagramConfig svgDiagramConfig;
-
-    @Resource
     private DashScopeChatModel chatModel;
 
     @Override

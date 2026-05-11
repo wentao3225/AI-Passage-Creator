@@ -4,7 +4,9 @@ import com.alibaba.cloud.ai.graph.OverAllState;
 import com.alibaba.cloud.ai.graph.action.NodeAction;
 import com.ywt.passage.agent.StreamHandlerContext;
 import com.ywt.passage.agent.tools.ImageGenerationTool;
+import com.ywt.passage.config.SvgDiagramConfig;
 import com.ywt.passage.model.dto.article.ArticleState;
+import com.ywt.passage.model.enums.ImageMethodEnum;
 import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import com.ywt.passage.utils.GsonUtils;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -32,6 +35,8 @@ public class ParallelImageGenerator implements NodeAction {
     public static final String INPUT_IMAGE_REQUIREMENTS = "imageRequirements";
     public static final String OUTPUT_IMAGES = "images";
     private final ImageGenerationTool imageGenerationTool;
+    private final SvgDiagramConfig svgDiagramConfig;
+    private final Executor svgDiagramExecutor;
 
     @Override
     public Map<String, Object> apply(OverAllState state) {
@@ -73,7 +78,7 @@ public class ParallelImageGenerator implements NodeAction {
                         )));
 
         // 并行执行不同类型的图片生成
-        List<ArticleState.ImageResult> allImages = executeParallel(groupedBySource, streamHandler);
+        List<ArticleState.ImageResult> allImages = executeParallelPlus(groupedBySource, streamHandler);
 
         // 按 position 排序
         allImages.sort((a, b) -> {
@@ -152,6 +157,99 @@ public class ParallelImageGenerator implements NodeAction {
 
         return new ArrayList<>(allImages);
     }
+
+
+    private List<ArticleState.ImageResult> executeParallelPlus(
+            Map<String, List<ArticleState.ImageRequirement>> groupedBySource,
+            Consumer<String> streamHandler) {
+
+        // 使用线程安全的列表收集结果
+        CopyOnWriteArrayList<ArticleState.ImageResult> allImages = new CopyOnWriteArrayList<>();
+
+        List<CompletableFuture<Void>> futures = groupedBySource.entrySet().stream()
+                .map(entry -> CompletableFuture.runAsync(() -> {
+                    processSourceGroup(entry.getKey(), entry.getValue(), streamHandler, allImages);
+                })).toList();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        return new ArrayList<>(allImages);
+    }
+
+    private void processSourceGroup(String imageSource, List<ArticleState.ImageRequirement> requirements,
+                                    Consumer<String> streamHandler,
+                                    CopyOnWriteArrayList<ArticleState.ImageResult> allImages) {
+        log.info("开始处理 {} 类型的图片，数量: {}", imageSource, requirements.size());
+        ImageMethodEnum method = ImageMethodEnum.getByValue(imageSource);
+        boolean useSvgLimitedConcurrency = method == ImageMethodEnum.SVG_DIAGRAM
+                && requirements.size() > 1
+                && svgDiagramConfig.getMaxConcurrency() != null
+                && svgDiagramConfig.getMaxConcurrency() > 1;
+
+        if (useSvgLimitedConcurrency) {
+            executeSvgRequirementsWithLimit(requirements, streamHandler, allImages);
+            return;
+        }
+
+        for (ArticleState.ImageRequirement req : requirements) {
+            processSingleRequirement(req, streamHandler, allImages);
+        }
+    }
+
+    private void executeSvgRequirementsWithLimit(List<ArticleState.ImageRequirement> requirements,
+                                                 Consumer<String> streamHandler,
+                                                 CopyOnWriteArrayList<ArticleState.ImageResult> allImages) {
+        Integer configuredConcurrency = svgDiagramConfig.getMaxConcurrency();
+        int maxConcurrency = configuredConcurrency == null ? 1 : Math.max(1, configuredConcurrency);
+
+        // 分批提交，避免线程池饱和后由调用线程兜底执行，导致实际并发超过配置上限。
+        for (int start = 0; start < requirements.size(); start += maxConcurrency) {
+            int end = Math.min(start + maxConcurrency, requirements.size());
+            List<CompletableFuture<Void>> futures = requirements.subList(start, end).stream()
+                .map(req -> CompletableFuture.runAsync(
+                    () -> processSingleRequirement(req, streamHandler, allImages),
+                    svgDiagramExecutor)).toList();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        }
+    }
+
+    private void processSingleRequirement(ArticleState.ImageRequirement req,
+                                          Consumer<String> streamHandler,
+                                          CopyOnWriteArrayList<ArticleState.ImageResult> allImages) {
+        String imageSource = req.getImageSource();
+        try {
+            ImageGenerationTool.ImageGenerationResult result =
+                    imageGenerationTool.generateImageDirect(
+                            imageSource,
+                            req.getKeywords(),
+                            req.getPrompt(),
+                            req.getPosition(),
+                            req.getType(),
+                            req.getSectionTitle(),
+                            req.getPlaceholderId()
+                    );
+
+            if (result.isSuccess()) {
+                ArticleState.ImageResult imageResult = convertToImageResult(result);
+                allImages.add(imageResult);
+
+                // 推送单张配图完成消息
+                if (streamHandler != null) {
+                    String message = SseMessageTypeEnum.IMAGE_COMPLETE.getStreamingPrefix()
+                            + GsonUtils.toJson(imageResult);
+                    streamHandler.accept(message);
+                }
+
+                log.info("图片生成成功: imageSource={}, position={}",
+                        imageSource, req.getPosition());
+            } else {
+                log.warn("图片生成失败: imageSource={}, position={}, error={}",
+                        imageSource, req.getPosition(), result.getError());
+            }
+        } catch (Exception e) {
+            log.error("图片生成异常: imageSource={}, position={}",
+                    imageSource, req.getPosition(), e);
+        }
+    }
+
 
     /**
      * 转换 ImageGenerationResult 为 ArticleState.ImageResult
