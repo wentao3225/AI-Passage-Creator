@@ -134,6 +134,7 @@ public interface PromptConstant {
       3. 适当使用金句,增强可读性
       4. 添加过渡句,确保逻辑连贯
       5. 使用 Markdown 格式,章节使用 ## 标题
+      6. 语言通俗易懂,可适当举例子
 
       请直接返回 Markdown 格式的正文内容,不要有其他内容。
       """;
