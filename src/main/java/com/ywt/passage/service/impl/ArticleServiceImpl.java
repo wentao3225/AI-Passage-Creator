@@ -224,6 +224,86 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     /**
+     * 校验并准备从指定阶段重跑。
+     */
+    @Override
+    public Article preparePhaseRestart(String taskId, ArticlePhaseEnum targetPhase, User loginUser) {
+        Article article = getByTaskId(taskId);
+        ThrowUtils.throwIf(article == null, ErrorCode.NOT_FOUND_ERROR, "文章记录不存在");
+        checkArticlePermission(article, loginUser);
+
+        ArticleStatusEnum currentStatus = ArticleStatusEnum.getByValue(article.getStatus());
+        ThrowUtils.throwIf(ArticleStatusEnum.PROCESSING.equals(currentStatus),
+                ErrorCode.OPERATION_ERROR, "文章正在处理中，暂不支持重跑");
+
+        ThrowUtils.throwIf(targetPhase == null, ErrorCode.PARAMS_ERROR, "目标阶段不能为空");
+
+        switch (targetPhase) {
+            case TITLE_GENERATING -> resetForTitleRestart(article);
+            case OUTLINE_GENERATING -> resetForOutlineRestart(article);
+            case CONTENT_GENERATING -> resetForContentRestart(article);
+            default -> throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前阶段不支持重跑");
+        }
+
+        article.setPhase(targetPhase.getValue());
+        article.setStatus(ArticleStatusEnum.PROCESSING.getValue());
+        article.setErrorMessage(null);
+        article.setCompletedTime(null);
+
+        this.updateById(article);
+        log.info("准备从阶段重跑, taskId={}, targetPhase={}, status={}",
+                taskId, targetPhase.getValue(), article.getStatus());
+        return article;
+    }
+
+    /**
+     * 从标题阶段重跑时，清空所有下游产物，重新回到标题生成。
+     */
+    private void resetForTitleRestart(Article article) {
+        ThrowUtils.throwIf(!StringUtils.hasText(article.getTopic()),
+                ErrorCode.OPERATION_ERROR, "缺少选题，无法从标题阶段重跑");
+
+        article.setTitleOptions(null);
+        article.setMainTitle(null);
+        article.setSubTitle(null);
+        article.setUserDescription(null);
+        article.setOutline(null);
+        article.setContent(null);
+        article.setFullContent(null);
+        article.setCoverImage(null);
+        article.setImages(null);
+    }
+
+    /**
+     * 从大纲阶段重跑时，保留已确认标题，清空大纲及其下游产物。
+     */
+    private void resetForOutlineRestart(Article article) {
+        ThrowUtils.throwIf(!StringUtils.hasText(article.getMainTitle()) || !StringUtils.hasText(article.getSubTitle()),
+                ErrorCode.OPERATION_ERROR, "缺少已确认标题，无法从大纲阶段重跑");
+
+        article.setOutline(null);
+        article.setContent(null);
+        article.setFullContent(null);
+        article.setCoverImage(null);
+        article.setImages(null);
+    }
+
+    /**
+     * 从正文阶段重跑时，保留标题和大纲，仅清空正文与配图结果。
+     */
+    private void resetForContentRestart(Article article) {
+        ThrowUtils.throwIf(!StringUtils.hasText(article.getMainTitle()) || !StringUtils.hasText(article.getSubTitle()),
+                ErrorCode.OPERATION_ERROR, "缺少已确认标题，无法从正文阶段重跑");
+        ThrowUtils.throwIf(!StringUtils.hasText(article.getOutline()),
+                ErrorCode.OPERATION_ERROR, "缺少已确认大纲，无法从正文阶段重跑");
+
+        article.setContent(null);
+        article.setFullContent(null);
+        article.setCoverImage(null);
+        article.setImages(null);
+    }
+
+    /**
      * 确认大纲
      *
      * @param taskId    任务ID

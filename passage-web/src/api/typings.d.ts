@@ -61,6 +61,11 @@ declare namespace API {
     taskId?: string;
   };
 
+  type ArticleRestartPhaseRequest = {
+    taskId?: string;
+    targetPhase?: string;
+  };
+
   type ArticleVO = {
     id?: number;
     taskId?: string;

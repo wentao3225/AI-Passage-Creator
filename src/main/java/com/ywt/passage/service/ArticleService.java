@@ -101,6 +101,16 @@ public interface ArticleService extends IService<Article> {
     Article prepareTitleRegeneration(String taskId, User loginUser);
 
     /**
+     * 校验并准备从指定阶段重跑。
+     *
+     * @param taskId      任务ID
+     * @param targetPhase 目标阶段
+     * @param loginUser   当前登录用户
+     * @return 当前文章记录
+     */
+    Article preparePhaseRestart(String taskId, ArticlePhaseEnum targetPhase, User loginUser);
+
+    /**
      * 确认大纲（用户编辑后）
      *
      * @param taskId    任务ID

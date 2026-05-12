@@ -10,12 +10,24 @@
                         返回
                     </a-button>
                     <div class="right-actions">
-                        <a-button v-if="article?.status === 'FAILED'" type="primary" danger @click="handleRetry"
+                        <a-button v-if="canRetryCurrentPhase" type="primary" @click="handleRetryCurrentPhase"
                             class="retry-btn">
                             <template #icon>
                                 <RedoOutlined />
                             </template>
-                            重新创建
+                            重试当前阶段
+                        </a-button>
+                        <a-button v-if="canRestartOutline" @click="handleRestartOutline">
+                            <template #icon>
+                                <RedoOutlined />
+                            </template>
+                            从大纲重跑
+                        </a-button>
+                        <a-button v-if="canRestartContent" @click="handleRestartContent">
+                            <template #icon>
+                                <RedoOutlined />
+                            </template>
+                            从正文重跑
                         </a-button>
                         <a-button type="primary" @click="exportMarkdown" class="export-btn">
                             <template #icon>
@@ -95,7 +107,7 @@
                                         <div class="timeline-content">
                                             <div class="timeline-header">
                                                 <span class="agent-name">{{ getAgentDisplayName(log.agentName ?? '')
-                                                    }}</span>
+                                                }}</span>
                                                 <span class="duration">{{ log.durationMs ?? 0 }}ms</span>
                                             </div>
                                             <div class="timeline-time">
@@ -160,7 +172,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -171,7 +183,7 @@ import {
     PictureOutlined,
     RedoOutlined,
 } from '@ant-design/icons-vue'
-import { getArticle, getExecutionLogs } from '@/api/articleController'
+import { getArticle, getExecutionLogs, restartPhase as restartArticlePhase } from '@/api/articleController'
 import { buildArticleMarkdown, markdownToHtml, resolveArticleCoverImage } from '@/utils/markdown'
 import dayjs from 'dayjs'
 
@@ -183,22 +195,42 @@ const article = ref<API.ArticleVO | null>(null)
 const executionStats = ref<API.AgentExecutionStats | null>(null)
 const logsLoading = ref(false)
 const showExecutionLogs = ref(false)
+let pollingTimer: ReturnType<typeof window.setInterval> | null = null
 
 const articleMarkdown = computed(() => buildArticleMarkdown(article.value))
+const restartablePhases = ['TITLE_GENERATING', 'OUTLINE_GENERATING', 'CONTENT_GENERATING']
+
+const canRetryCurrentPhase = computed(() => {
+    return article.value?.status === 'FAILED' && restartablePhases.includes(article.value?.phase ?? '')
+})
+
+const canRestartOutline = computed(() => {
+    return article.value?.status !== 'PROCESSING'
+        && !!article.value?.mainTitle
+        && !!article.value?.subTitle
+})
+
+const canRestartContent = computed(() => {
+    return canRestartOutline.value && !!article.value?.outline?.length
+})
 
 // 加载文章
 /**
  * 根据路由 taskId 拉取文章详情。
  */
-const loadArticle = async () => {
+const loadArticle = async (showLoading = true, silent = false) => {
     const taskId = route.params.taskId as string
     if (!taskId) {
-        message.error('文章ID不存在')
+        if (!silent) {
+            message.error('文章ID不存在')
+        }
         return
     }
 
     // 打开加载态，避免重复点击与空白闪烁
-    loading.value = true
+    if (showLoading) {
+        loading.value = true
+    }
     try {
         // 请求后端文章详情接口
         const res = await getArticle({ taskId })
@@ -207,10 +239,15 @@ const loadArticle = async () => {
         // 自动加载执行日志
         await loadExecutionLogs(taskId)
     } catch (error) {
-        message.error((error as Error).message || '加载失败')
+        if (!silent) {
+            message.error((error as Error).message || '加载失败')
+        }
     } finally {
         // 无论成功失败都关闭加载态
-        loading.value = false
+        if (showLoading) {
+            loading.value = false
+        }
+        syncPollingState()
     }
 }
 
@@ -226,6 +263,32 @@ const loadExecutionLogs = async (taskId: string) => {
     } finally {
         logsLoading.value = false
     }
+}
+
+/**
+ * 停止轮询，避免离开页面后继续请求。
+ */
+const stopPolling = () => {
+    if (pollingTimer) {
+        window.clearInterval(pollingTimer)
+        pollingTimer = null
+    }
+}
+
+/**
+ * 文章处于处理中时，详情页定时刷新状态和日志。
+ */
+const syncPollingState = () => {
+    if (article.value?.status !== 'PROCESSING') {
+        stopPolling()
+        return
+    }
+    if (pollingTimer) {
+        return
+    }
+    pollingTimer = window.setInterval(() => {
+        loadArticle(false, true)
+    }, 3000)
 }
 
 
@@ -346,34 +409,74 @@ const getAgentDisplayName = (agentName: string) => {
     return nameMap[agentName] || agentName
 }
 
-// 重试（重新创建文章）
+// 从指定阶段重跑
 /**
- * 使用当前文章选题跳转到创作页重试。
+ * 复用当前任务，从指定生成阶段重新开始。
  */
-const handleRetry = () => {
-    // 无文章上下文时不允许重试
-    if (!article.value) return
+const triggerPhaseRestart = (targetPhase: string, title: string, content: string) => {
+    if (!article.value?.taskId) return
 
     Modal.confirm({
-        title: '确认重试',
-        content: '将使用相同的选题和配置重新创建文章，是否继续？',
+        title,
+        content,
         okText: '确认',
         cancelText: '取消',
-        onOk: () => {
-            // 仅回填选题，保持重试路径简洁
-            router.push({
-                path: '/create',
-                query: {
-                    topic: article.value?.topic
-                }
-            })
+        onOk: async () => {
+            try {
+                await restartArticlePhase({
+                    taskId: article.value?.taskId,
+                    targetPhase,
+                })
+                message.success('任务已重新启动')
+                await loadArticle(false, true)
+            } catch (error) {
+                message.error((error as Error).message || '重跑失败')
+            }
         }
     })
+}
+
+/**
+ * 失败任务直接按当前生成阶段重试。
+ */
+const handleRetryCurrentPhase = () => {
+    if (!article.value?.phase) return
+    triggerPhaseRestart(
+        article.value.phase,
+        '确认重试当前阶段',
+        '将保留当前任务，清空当前阶段的旧结果并重新执行，是否继续？'
+    )
+}
+
+/**
+ * 从大纲阶段重跑，适合想保留标题但重做后续内容的场景。
+ */
+const handleRestartOutline = () => {
+    triggerPhaseRestart(
+        'OUTLINE_GENERATING',
+        '确认从大纲重跑',
+        '将保留已确认标题，清空旧大纲、正文和配图结果，并重新生成后续内容。是否继续？'
+    )
+}
+
+/**
+ * 从正文阶段重跑，适合保留标题和大纲，只重做正文与配图。
+ */
+const handleRestartContent = () => {
+    triggerPhaseRestart(
+        'CONTENT_GENERATING',
+        '确认从正文重跑',
+        '将保留当前标题和大纲，清空旧正文与配图结果，并重新生成图文。是否继续？'
+    )
 }
 
 onMounted(() => {
     // 页面进入时自动拉取详情
     loadArticle()
+})
+
+onUnmounted(() => {
+    stopPolling()
 })
 </script>
 

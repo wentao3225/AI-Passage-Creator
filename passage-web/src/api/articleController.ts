@@ -79,6 +79,21 @@ export async function regenerateTitles(
     ...(options || {}),
   });
 }
+
+/** 从指定阶段重跑 POST /article/restart-phase */
+export async function restartPhase(
+  body: API.ArticleRestartPhaseRequest,
+  options?: { [key: string]: any }
+) {
+  return request<API.BaseResponseVoid>("/article/restart-phase", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
 /** 创建文章任务 POST /article/create */
 export async function createArticle(
   body: API.ArticleCreateRequest,
