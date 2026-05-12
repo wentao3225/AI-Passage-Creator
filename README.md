@@ -4,6 +4,63 @@ AI-Passage-Creator 是一个面向长文创作场景的 AI 应用系统。它不
 
 后端基于 Spring Boot 3 + Spring AI Alibaba + MyBatis-Flex，前端基于 Vue 3 + Vite + Ant Design Vue，实现了 SSE 实时反馈、人机协同编辑、多 Agent 编排切换、执行日志留痕和 Markdown 导出。
 
+## 系统架构
+
+```mermaid
+flowchart TD
+    subgraph 前端["前端 Vue 3"]
+        A1["创作页<br/>选题 / 标题确认 / 大纲编辑"]
+        A2["详情页<br/>正文 / 配图 / 执行日志"]
+        A3["列表页 / 首页"]
+    end
+
+    subgraph 后端["后端 Spring Boot 3"]
+        B1["ArticleController<br/>REST 接口"]
+        B2["SSE Emitter<br/>实时进度推送"]
+        B3["ArticleAsyncService<br/>阶段调度 @Async"]
+
+        subgraph 双引擎["双引擎（可配置切换）"]
+            C1["ArticleAgentOrchestrator<br/>StateGraph 编排模式"]
+            C2["ArticleAgentService<br/>旧版串行模式"]
+        end
+
+        subgraph Agents["Agent 链"]
+            D1["Agent1 标题生成"]
+            D2["Agent2 大纲生成"]
+            D3["Agent3 正文生成（流式）"]
+            D4["Agent4 配图分析"]
+            D5["Agent5 并行配图"]
+            D6["ContentMerger 图文合成"]
+        end
+    end
+
+    subgraph 外部服务["外部服务"]
+        E1["DashScope LLM"]
+        E2["Pexels 图库"]
+        E3["Iconify 图标"]
+        E4["Mermaid CLI"]
+        E5["SVG 生成"]
+    end
+
+    subgraph 存储["存储"]
+        F1["MySQL<br/>文章 / 用户 / 日志"]
+        F2["Redis<br/>Session"]
+        F3["本地文件系统<br/>图片静态资源"]
+    end
+
+    前端 -- REST --> B1
+    前端 -- SSE 长连接 --> B2
+    B1 --> B3
+    B3 --> 双引擎
+    双引擎 --> Agents
+    D1 & D2 & D3 & D4 --> E1
+    D5 --> E2 & E3 & E4 & E5
+    Agents --> F1
+    Agents --> F3
+    B2 -.推送进度.-> 前端
+    后端 --> F2
+```
+
 ## 核心能力
 
 - 三阶段创作流程：创建任务生成标题，确认标题生成大纲，确认大纲生成正文与配图。
@@ -241,6 +298,38 @@ article:
 
 SSE 工具支持通过环境变量 VITE_API_BASE_URL 覆盖接口地址；如果前后端不在同一机器或端口，请同步调整前端请求配置。
 
+## 页面截图
+
+> 截图均来自本地真实运行，不含虚构数据。
+
+**创作页 — 选题输入与配图来源选择**
+
+![创作页输入阶段](doc/screenshots/01-创作页-输入阶段.png)
+
+**创作页 — 标题候选选择**
+
+![创作页标题选择阶段](doc/screenshots/02-创作页-标题选择阶段.png)
+
+**创作页 — 大纲编辑（支持拖拽 + AI 修改）**
+
+![创作页大纲编辑阶段](doc/screenshots/03-创作页-大纲编辑阶段.png)
+
+**创作页 — 正文与配图生成中（SSE 实时进度）**
+
+![创作页生成中](doc/screenshots/04-创作页-生成进行中.png)
+
+**创作页 — 生成完成预览**
+
+![创作页生成完成](doc/screenshots/05-创作页-生成完成.png)
+
+**文章详情页 — 图文内容与执行日志**
+
+![详情页图文与日志](doc/screenshots/06-详情页-图文与执行日志.png)
+
+**文章列表页**
+
+![列表页](doc/screenshots/07-列表页.png)
+
 ## 主要页面
 
 - /：主页
@@ -279,6 +368,5 @@ SSE 工具支持通过环境变量 VITE_API_BASE_URL 覆盖接口地址；如果
 
 ## 后续可补强方向
 
-- 在 README 中补充创作页、执行日志页、详情页截图或 GIF。
 - 增加部署说明，例如 Docker Compose 或统一本地开发脚本。
 - 补充 application-local.example.yaml 和前端环境变量示例文件。
