@@ -33,6 +33,9 @@ import java.util.Set;
 @Slf4j
 public class ExtraTrustStoreInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
+    private static volatile SSLContext sharedSslContext;
+    private static volatile X509ExtendedTrustManager sharedTrustManager;
+
     private static final String ENABLED_KEY = "app.ssl.extra-trust-store.enabled";
     private static final String PATH_KEY = "app.ssl.extra-trust-store.path";
     private static final String PASSWORD_KEY = "app.ssl.extra-trust-store.password";
@@ -44,12 +47,16 @@ public class ExtraTrustStoreInitializer implements ApplicationContextInitializer
         Environment environment = applicationContext.getEnvironment();
         boolean enabled = environment.getProperty(ENABLED_KEY, Boolean.class, true);
         if (!enabled) {
+            sharedSslContext = null;
+            sharedTrustManager = null;
             log.info("额外信任库已禁用，跳过 SSL 初始化");
             return;
         }
 
         Path trustStorePath = resolveTrustStorePath(environment.getProperty(PATH_KEY, DEFAULT_RELATIVE_PATH));
         if (!Files.exists(trustStorePath)) {
+            sharedSslContext = null;
+            sharedTrustManager = null;
             log.info("未找到额外信任库，跳过 SSL 初始化: {}", trustStorePath);
             return;
         }
@@ -58,14 +65,27 @@ public class ExtraTrustStoreInitializer implements ApplicationContextInitializer
         String type = environment.getProperty(TYPE_KEY, "JKS");
 
         try {
-            SSLContext sslContext = buildMergedSslContext(trustStorePath, password, type);
+            X509ExtendedTrustManager compositeTrustManager = buildMergedTrustManager(trustStorePath, password, type);
+            SSLContext sslContext = buildSslContext(compositeTrustManager);
             SSLContext.setDefault(sslContext);
             HttpsURLConnection.setDefaultSSLSocketFactory(sslContext.getSocketFactory());
+            sharedSslContext = sslContext;
+            sharedTrustManager = compositeTrustManager;
 
             log.info("额外信任库加载成功: {}", trustStorePath);
         } catch (Exception e) {
+            sharedSslContext = null;
+            sharedTrustManager = null;
             throw new IllegalStateException("加载额外信任库失败: " + trustStorePath, e);
         }
+    }
+
+    public static SSLContext getSharedSslContext() {
+        return sharedSslContext;
+    }
+
+    public static X509ExtendedTrustManager getSharedTrustManager() {
+        return sharedTrustManager;
     }
 
     private Path resolveTrustStorePath(String configuredPath) {
@@ -76,15 +96,17 @@ public class ExtraTrustStoreInitializer implements ApplicationContextInitializer
         return path.toAbsolutePath().normalize();
     }
 
-    private SSLContext buildMergedSslContext(Path trustStorePath, String password, String type)
+    private X509ExtendedTrustManager buildMergedTrustManager(Path trustStorePath, String password, String type)
             throws Exception {
         X509ExtendedTrustManager systemTrustManager = loadSystemTrustManager();
         X509ExtendedTrustManager extraTrustManager = loadTrustManager(trustStorePath, password, type);
 
-        X509ExtendedTrustManager compositeTrustManager = new CompositeX509ExtendedTrustManager(
+        return new CompositeX509ExtendedTrustManager(
                 List.of(systemTrustManager, extraTrustManager)
         );
+    }
 
+    private SSLContext buildSslContext(X509ExtendedTrustManager compositeTrustManager) throws Exception {
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, new TrustManager[]{compositeTrustManager}, new SecureRandom());
         return sslContext;

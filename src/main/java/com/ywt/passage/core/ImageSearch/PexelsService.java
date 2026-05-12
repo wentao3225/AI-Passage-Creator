@@ -24,7 +24,8 @@ import static com.ywt.passage.constant.ArticleConstant.*;
 @Slf4j
 public class PexelsService implements ImageSearchService {
 
-    private final OkHttpClient httpClient = new OkHttpClient();
+    @Resource(name = "imageSearchOkHttpClient")
+    private OkHttpClient httpClient;
     @Resource
     private PexelsConfig pexelsConfig;
 

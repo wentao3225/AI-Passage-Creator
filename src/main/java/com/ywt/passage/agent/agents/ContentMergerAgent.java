@@ -83,12 +83,20 @@ public class ContentMergerAgent implements NodeAction {
                 } else {
                     log.warn("正文中未找到占位符: {}", placeholder);
                 }
+            } else if (isCoverImage(image)) {
+                log.info("封面图无需占位符: position={}", image.getPosition());
             } else {
                 log.warn("图片 position={} 的 placeholderId 为空", image.getPosition());
             }
         }
 
         return fullContent;
+    }
+
+    private boolean isCoverImage(ArticleState.ImageResult image) {
+        return image != null
+                && (Integer.valueOf(1).equals(image.getPosition())
+                || "cover".equalsIgnoreCase(image.getDescription()));
     }
 
     /**

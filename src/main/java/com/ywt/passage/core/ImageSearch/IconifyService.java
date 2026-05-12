@@ -16,6 +16,11 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import static com.ywt.passage.constant.ArticleConstant.PICSUM_URL_TEMPLATE;
 
@@ -27,7 +32,8 @@ import static com.ywt.passage.constant.ArticleConstant.PICSUM_URL_TEMPLATE;
 @Slf4j
 public class IconifyService implements ImageSearchService {
 
-    private final OkHttpClient httpClient = new OkHttpClient();
+    @Resource(name = "imageSearchOkHttpClient")
+    private OkHttpClient httpClient;
     @Resource
     private IconifyConfig iconifyConfig;
 
@@ -39,26 +45,27 @@ public class IconifyService implements ImageSearchService {
         }
 
         try {
-            // 搜索图标
-            String searchUrl = buildSearchUrl(keywords);
-            String searchResult = callApi(searchUrl);
+            for (String query : buildSearchQueries(keywords)) {
+                String searchUrl = buildSearchUrl(query);
+                String searchResult = callApi(searchUrl);
 
-            if (searchResult == null) {
-                return null;
+                if (searchResult == null) {
+                    continue;
+                }
+
+                String iconName = extractFirstIcon(searchResult);
+                if (iconName == null) {
+                    continue;
+                }
+
+                String svgUrl = buildSvgUrl(iconName);
+                log.info("Iconify 图标检索成功: originalKeywords={}, actualQuery={}, icon={}",
+                        keywords, query, iconName);
+                return svgUrl;
             }
 
-            // 解析结果，获取第一个图标
-            String iconName = extractFirstIcon(searchResult);
-            if (iconName == null) {
-                log.warn("Iconify 未检索到图标: {}", keywords);
-                return null;
-            }
-
-            // 构建 SVG URL
-            String svgUrl = buildSvgUrl(iconName);
-            log.info("Iconify 图标检索成功: {} -> {}", keywords, iconName);
-
-            return svgUrl;
+            log.warn("Iconify 未检索到图标: {}", keywords);
+            return null;
 
         } catch (Exception e) {
             log.error("Iconify 图标检索异常, keywords={}", keywords, e);
@@ -85,6 +92,41 @@ public class IconifyService implements ImageSearchService {
                 iconifyConfig.getApiUrl(),
                 encodedKeywords,
                 iconifyConfig.getSearchLimit());
+    }
+
+    private List<String> buildSearchQueries(String keywords) {
+        Set<String> queries = new LinkedHashSet<>();
+
+        String normalized = normalizeKeywords(keywords);
+        if (!normalized.isEmpty()) {
+            queries.add(normalized);
+        }
+
+        String[] tokens = normalized.split("\\s+");
+        if (tokens.length >= 2) {
+            queries.add(tokens[0] + " " + tokens[1]);
+        }
+
+        for (String token : tokens) {
+            if (token.length() >= 2) {
+                queries.add(token);
+            }
+        }
+
+        if (queries.isEmpty()) {
+            queries.add(keywords.trim());
+        }
+
+        return new ArrayList<>(queries);
+    }
+
+    private String normalizeKeywords(String keywords) {
+        return keywords == null
+                ? ""
+                : keywords.toLowerCase(Locale.ROOT)
+                .replaceAll("[，,、;/|:_-]+", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     /**

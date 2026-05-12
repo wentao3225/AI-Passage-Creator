@@ -158,6 +158,7 @@ import {
   RedoOutlined
 } from '@ant-design/icons-vue'
 import { listArticle, deleteArticle as deleteArticleApi, getArticle } from '@/api/articleController'
+import { buildArticleMarkdown } from '@/utils/markdown'
 import dayjs, { type Dayjs } from 'dayjs'
 
 const router = useRouter()
@@ -441,12 +442,8 @@ const exportArticle = async (record: API.ArticleVO) => {
     let markdown = `# ${article.mainTitle}\n\n`
     markdown += `> ${article.subTitle}\n\n`
 
-    // 优先导出带配图的完整正文
-    if (article.fullContent) {
-      markdown += article.fullContent
-    } else {
-      markdown += article.content || ''
-    }
+    // 优先导出带封面图的完整正文
+    markdown += buildArticleMarkdown(article)
 
     // 创建下载链接并触发浏览器下载
     const blob = new Blob([markdown], { type: 'text/markdown' })

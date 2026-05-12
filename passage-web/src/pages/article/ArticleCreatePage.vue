@@ -205,7 +205,7 @@
                             <p class="article-subtitle">{{ article.subTitle }}</p>
                         </div>
                         <div class="content-preview">
-                            <div v-html="markdownToHtml(article.fullContent || article.content || '')"
+                            <div v-html="markdownToHtml(completedArticleMarkdown)"
                                 class="markdown-body"></div>
                         </div>
                     </div>
@@ -475,7 +475,7 @@ import {
 } from '@ant-design/icons-vue'
 import { createArticle, confirmTitle, confirmOutline, regenerateTitles } from '@/api/articleController'
 import { connectSSE, closeSSE, type SSEMessage } from '@/utils/sse'
-import { marked } from 'marked'
+import { buildArticleMarkdown, markdownToHtml } from '@/utils/markdown'
 import TitleSelectingStage from './components/TitleSelectingStage.vue'
 import OutlineEditingStage from './components/OutlineEditingStage.vue'
 
@@ -608,12 +608,9 @@ const article = ref<Partial<API.ArticleVO>>({
     images: [],
 })
 
-let eventSource: EventSource | null = null
+const completedArticleMarkdown = computed(() => buildArticleMarkdown(article.value))
 
-// Markdown 转 HTML
-const markdownToHtml = (markdown: string | undefined) => {
-    return marked(markdown || '')
-}
+let eventSource: EventSource | null = null
 
 // 自动滚动到底部
 const scrollToBottom = () => {
@@ -908,7 +905,7 @@ const handleSSEComplete = () => {
 
 // 复制全文
 const copyContent = async () => {
-    const content = article.value.fullContent || article.value.content || ''
+    const content = completedArticleMarkdown.value
     try {
         await navigator.clipboard.writeText(content)
         message.success('已复制到剪贴板')

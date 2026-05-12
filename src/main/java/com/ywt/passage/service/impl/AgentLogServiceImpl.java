@@ -26,7 +26,7 @@ public class AgentLogServiceImpl extends ServiceImpl<AgentLogMapper, AgentLog> i
      *
      * @param agentLog 日志对象
      */
-    @Async
+    @Async("articleExecutor")
     @Override
     public void saveLogAsync(AgentLog agentLog) {
         try {

@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 配图需求分析 Agent
@@ -31,6 +33,8 @@ import java.util.*;
 @Slf4j
 @RequiredArgsConstructor
 public class ImageAnalyzerAgent implements NodeAction {
+
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(?:IMAGE|ICON)_PLACEHOLDER_\\d+}}");
 
     public static final String INPUT_MAIN_TITLE = "mainTitle";
     public static final String INPUT_CONTENT = "content";
@@ -90,21 +94,91 @@ public class ImageAnalyzerAgent implements NodeAction {
                 agent4Result.getImageRequirements(),
                 enabledMethods,
                 mainTitle);
+        List<ArticleState.ImageRequirement> reconciledRequirements = reconcileRequirementsWithContent(
+            contentWithPlaceholders,
+            validatedRequirements);
 
-        log.info("ImageAnalyzerAgent 执行完成: 配图需求数量={}, 验证后数量={}",
+        log.info("ImageAnalyzerAgent 执行完成: 配图需求数量={}, 验证后数量={}, 对齐正文后数量={}",
                 agent4Result.getImageRequirements() == null ? 0 : agent4Result.getImageRequirements().size(),
-                validatedRequirements.size());
+            validatedRequirements.size(),
+            reconciledRequirements.size());
 
         // 编排模式下在配图需求节点结束时立即通知前端，避免后续图片开始生成后状态仍停在正文阶段。
         // 将配图数量拼在消息后面（格式 "AGENT4_COMPLETE:<count>"），供后端在推送 SSE 时直接使用，
         // 避免此时 ArticleState.imageRequirements 尚未被 LangGraph 框架写回而导致前端读到 null。
-        StreamHandlerContext.send(SseMessageTypeEnum.AGENT4_COMPLETE.getValue() + ":" + validatedRequirements.size());
+        StreamHandlerContext.send(SseMessageTypeEnum.AGENT4_COMPLETE.getValue() + ":" + reconciledRequirements.size());
 
         // 返回结果
         return Map.of(
                 OUTPUT_CONTENT_WITH_PLACEHOLDERS, contentWithPlaceholders,
                 INPUT_CONTENT, contentWithPlaceholders,
-                OUTPUT_IMAGE_REQUIREMENTS, validatedRequirements);
+                OUTPUT_IMAGE_REQUIREMENTS, reconciledRequirements);
+    }
+
+    private List<ArticleState.ImageRequirement> reconcileRequirementsWithContent(
+            String contentWithPlaceholders,
+            List<ArticleState.ImageRequirement> requirements) {
+        if (requirements == null || requirements.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<String> placeholdersInContent = extractPlaceholders(contentWithPlaceholders);
+
+        List<ArticleState.ImageRequirement> reconciledRequirements = new ArrayList<>();
+        Set<String> usedPlaceholders = new HashSet<>();
+
+        for (ArticleState.ImageRequirement requirement : requirements) {
+            if (requirement == null) {
+                continue;
+            }
+
+            if (isCoverRequirement(requirement) || isCoverPosition(requirement)) {
+                reconciledRequirements.add(requirement);
+                continue;
+            }
+
+            String placeholderId = requirement.getPlaceholderId();
+            if (!StringUtils.hasText(placeholderId)) {
+                log.warn("非封面配图缺少占位符，已忽略, position={}, sectionTitle={}",
+                        requirement.getPosition(), requirement.getSectionTitle());
+                continue;
+            }
+
+            if (!placeholdersInContent.contains(placeholderId)) {
+                log.warn("配图需求占位符未出现在正文中，已忽略, position={}, placeholderId={}, sectionTitle={}",
+                        requirement.getPosition(), placeholderId, requirement.getSectionTitle());
+                continue;
+            }
+
+            if (!usedPlaceholders.add(placeholderId)) {
+                log.warn("配图需求占位符重复，已忽略后续重复项, position={}, placeholderId={}, sectionTitle={}",
+                        requirement.getPosition(), placeholderId, requirement.getSectionTitle());
+                continue;
+            }
+
+            reconciledRequirements.add(requirement);
+        }
+
+        Set<String> missingPlaceholders = new LinkedHashSet<>(placeholdersInContent);
+        missingPlaceholders.removeAll(usedPlaceholders);
+        if (!missingPlaceholders.isEmpty()) {
+            log.warn("正文存在未匹配的配图占位符, placeholders={}", missingPlaceholders);
+        }
+
+        return reconciledRequirements;
+    }
+
+    private Set<String> extractPlaceholders(String contentWithPlaceholders) {
+        if (!StringUtils.hasText(contentWithPlaceholders)) {
+            return Set.of();
+        }
+
+        Set<String> placeholders = new LinkedHashSet<>();
+        Matcher matcher = PLACEHOLDER_PATTERN.matcher(contentWithPlaceholders);
+        while (matcher.find()) {
+            placeholders.add(matcher.group());
+        }
+        return placeholders;
     }
 
     private String buildImageRequirementsPrompt(String mainTitle,

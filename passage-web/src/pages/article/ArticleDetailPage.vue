@@ -95,7 +95,7 @@
                                         <div class="timeline-content">
                                             <div class="timeline-header">
                                                 <span class="agent-name">{{ getAgentDisplayName(log.agentName ?? '')
-                                                }}</span>
+                                                    }}</span>
                                                 <span class="duration">{{ log.durationMs ?? 0 }}ms</span>
                                             </div>
                                             <div class="timeline-time">
@@ -129,26 +129,16 @@
                     <a-divider v-if="article.outline && article.outline.length > 0" />
 
                     <!-- 完整图文（优先展示） -->
-                    <div v-if="article.fullContent" class="content-section">
+                    <div v-if="articleMarkdown" class="content-section">
                         <h2 class="section-title">
                             <FileTextOutlined class="section-icon" />
                             完整图文
                         </h2>
-                        <div v-html="markdownToHtml(article.fullContent)" class="markdown-content"></div>
-                    </div>
-
-                    <!-- 普通正文（无 fullContent 时展示） -->
-                    <div v-else-if="article.content" class="content-section">
-                        <h2 class="section-title">
-                            <FileTextOutlined class="section-icon" />
-                            文章正文
-                        </h2>
-                        <div v-html="markdownToHtml(article.content)" class="markdown-content"></div>
+                        <div v-html="markdownToHtml(articleMarkdown)" class="markdown-content"></div>
                     </div>
 
                     <!-- 配图（仅在没有 fullContent 时单独展示） -->
-                    <div v-if="!article.fullContent && article.images && article.images.length > 0"
-                        class="images-section">
+                    <div v-if="!articleMarkdown && article.images && article.images.length > 0" class="images-section">
                         <h2 class="section-title">
                             <PictureOutlined class="section-icon" />
                             文章配图
@@ -170,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import {
@@ -182,7 +172,7 @@ import {
     RedoOutlined,
 } from '@ant-design/icons-vue'
 import { getArticle, getExecutionLogs } from '@/api/articleController'
-import { marked } from 'marked'
+import { buildArticleMarkdown, markdownToHtml, resolveArticleCoverImage } from '@/utils/markdown'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -194,15 +184,7 @@ const executionStats = ref<API.AgentExecutionStats | null>(null)
 const logsLoading = ref(false)
 const showExecutionLogs = ref(false)
 
-
-// Markdown 转 HTML
-/**
- * 将 Markdown 文本渲染为 HTML。
- */
-const markdownToHtml = (markdown: string) => {
-    // 详情页统一通过 marked 进行渲染
-    return marked(markdown)
-}
+const articleMarkdown = computed(() => buildArticleMarkdown(article.value))
 
 // 加载文章
 /**
@@ -267,10 +249,11 @@ const exportMarkdown = () => {
     // 组装文件头部内容
     let markdown = `# ${article.value.mainTitle}\n\n`
     markdown += `> ${article.value.subTitle}\n\n`
+    const coverImage = resolveArticleCoverImage(article.value)
 
     // 优先使用完整图文
     if (article.value.fullContent) {
-        markdown += article.value.fullContent
+        markdown += buildArticleMarkdown(article.value)
     } else {
         if (article.value.outline && article.value.outline.length > 0) {
             markdown += `## 目录\n\n`
@@ -281,14 +264,16 @@ const exportMarkdown = () => {
             markdown += `\n---\n\n`
         }
 
-        markdown += article.value.content || ''
+        markdown += buildArticleMarkdown(article.value)
 
         if (article.value.images && article.value.images.length > 0) {
             markdown += `\n\n## 配图\n\n`
-            article.value.images.forEach(image => {
-                // 将配图拼接为 markdown 图片语法
-                markdown += `![${image.description}](${image.url})\n\n`
-            })
+            article.value.images
+                .filter(image => image.position !== 1 && image.url !== coverImage)
+                .forEach(image => {
+                    // 将配图拼接为 markdown 图片语法
+                    markdown += `![${image.description}](${image.url})\n\n`
+                })
         }
     }
 
