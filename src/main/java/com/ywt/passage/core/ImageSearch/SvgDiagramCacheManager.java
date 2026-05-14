@@ -89,12 +89,12 @@ public class SvgDiagramCacheManager {
         // 缓存key
         String cacheKey = buildCacheKey(normalizedRequirement);
         Path targetFile = resolveCacheFile(normalizedRequirement);
-        Path cacheRoot = targetFile.getRoot();
+        Path cacheRoot = targetFile.getParent();
         Path tempFile = cacheRoot.resolve(cacheKey + TEMP_FILE_SUFFIX);
 
         try {
             Files.createDirectories(cacheRoot);
-            Files.writeString(targetFile, svgCode, StandardCharsets.UTF_8,
+            Files.writeString(tempFile, svgCode, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
