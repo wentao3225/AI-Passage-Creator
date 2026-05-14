@@ -158,7 +158,10 @@ public class ParallelImageGenerator implements NodeAction {
         return new ArrayList<>(allImages);
     }
 
-
+    /**
+     * 并行执行图片生成任务【针对SVG优化】
+     * 不同 imageSource 类型并行执行，同一类型内部串行执行
+     */
     private List<ArticleState.ImageResult> executeParallelPlus(
             Map<String, List<ArticleState.ImageRequirement>> groupedBySource,
             Consumer<String> streamHandler) {
