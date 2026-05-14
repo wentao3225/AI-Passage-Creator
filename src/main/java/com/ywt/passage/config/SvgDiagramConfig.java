@@ -34,4 +34,19 @@ public class SvgDiagramConfig {
      * SVG 同源并发上限
      */
     private Integer maxConcurrency = 2;
+
+    /**
+     * 是否启用 SVG 缓存
+     */
+    private Boolean cacheEnabled = true;
+
+    /**
+     * SVG 缓存 TTL（分钟）
+     */
+    private Long cacheTtlMinutes = 1440L;
+
+    /**
+     * SVG 缓存目录
+     */
+    private String cacheDir = "tmp/svg-diagram-cache";
 }

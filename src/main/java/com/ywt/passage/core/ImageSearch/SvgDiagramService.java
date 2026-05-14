@@ -31,6 +31,12 @@ public class SvgDiagramService implements ImageSearchService {
     @Resource
     private DashScopeChatModel chatModel;
 
+    @Resource
+    private SvgDiagramConfig svgDiagramConfig;
+
+    @Resource
+    private SvgDiagramCacheManager svgDiagramCacheManager;
+
     @Override
     public String searchImage(String keywords) {
         // 此方法已废弃，请使用 getImageData()
@@ -55,7 +61,18 @@ public class SvgDiagramService implements ImageSearchService {
             return null;
         }
 
+        long start = System.currentTimeMillis();
+        String normalizedRequirement = svgDiagramCacheManager.normalizeRequirement(requirement);
+
         try {
+            if (Boolean.TRUE.equals(svgDiagramConfig.getCacheEnabled())) {
+                ImageData cached = svgDiagramCacheManager.tryReadCache(normalizedRequirement);
+                if (cached != null) {
+                    log.info("SVG 缓存命中, cost={}ms", System.currentTimeMillis() - start);
+                    return cached;
+                }
+            }
+
             // 调用 LLM 生成 SVG 代码
             String svgCode = callLlmToGenerateSvg(requirement);
 
@@ -68,6 +85,10 @@ public class SvgDiagramService implements ImageSearchService {
             if (!isValidSvg(svgCode)) {
                 log.error("生成的 SVG 代码格式无效");
                 return null;
+            }
+
+            if (Boolean.TRUE.equals(svgDiagramConfig.getCacheEnabled())) {
+                svgDiagramCacheManager.writeCache(normalizedRequirement, svgCode);
             }
 
             // 转换为字节数据
