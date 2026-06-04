@@ -5,6 +5,6 @@ db:
 ai:
   dashscope:
     api-key: your_dashscope_api_key
-
+    model: your_model_name
 pexels:
   api-key: your_pexels_api_key
