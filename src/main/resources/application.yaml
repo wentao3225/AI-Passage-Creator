@@ -64,12 +64,6 @@ app:
   image-upload:
     local-dir: src/main/resources/static/uploads
     access-url-prefix: http://localhost:${server.port}${server.servlet.context-path}/uploads
-  ssl:
-    extra-trust-store:
-      enabled: true
-      path: certs/dashscope-truststore.jks
-      password: changeit
-      type: JKS
 
 # mermaid 配置
 mermaid:
