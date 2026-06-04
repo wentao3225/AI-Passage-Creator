@@ -313,8 +313,6 @@ A: 检查：
 
 ## �️ 页面截图
 
-> 截图放置区——启动项目后替换为你的真实截图
-
 **创作页：选题输入、标题确认与大纲编辑**
 
 ![创作页](doc/screenshots/01-create-page.png)
@@ -332,9 +330,4 @@ A: 检查：
 ## 📄 许可证
 
 MIT
-- POST /api/article/confirm-title
-- POST /api/article/confirm-outline
-- POST /api/article/ai-modify-outline
-- GET /api/article/{taskId}
-- GET /api/article/execution-logs/{taskId}
 
