@@ -84,7 +84,7 @@ svg-diagram:
   default-width: 800
   default-height: 600
   folder: "svg-diagrams"
-  max-concurrency: 3
+  max-concurrency: 5
   cache-enabled: true
   cache-ttl-minutes: 1440
   cache-dir: tmp/svg-diagram-cache
