@@ -4,6 +4,11 @@
 
 **一个面向长文创作场景的人机协同 AI 内容创作平台**
 
+![Java 21](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen)
+![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D)
+![License](https://img.shields.io/badge/License-MIT-blue)
+
 [快速启动](#快速启动) • [核心架构](#核心架构) • [使用流程](#使用流程) • [技术栈](#技术栈) • [项目亮点](#项目亮点)
 
 </div>
