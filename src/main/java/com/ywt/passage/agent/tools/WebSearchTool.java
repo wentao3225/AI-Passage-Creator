@@ -3,8 +3,14 @@ package com.ywt.passage.agent.tools;
 
 import com.ywt.passage.utils.GsonUtils;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -37,26 +43,48 @@ public class WebSearchTool implements Tool {
         log.info("WebSearchTool 执行: args={}", args);
         try {
             @SuppressWarnings("unchecked")
-            Map<String, String> argsMap = GsonUtils.getInstance()
-                    .fromJson(args, Map.class);
+            Map<String, String> argsMap = GsonUtils.getInstance().fromJson(args, Map.class);
             String query = argsMap.getOrDefault("query", "");
             if (query.isBlank()) {
                 return ToolCallResult.failure("搜索关键词不能为空");
             }
-            // **** 模拟搜索结果 ****
-            // 真实环境下这里应调用搜索引擎 API
-            String mockResult = String.format(
-                    """
-                            【搜索结果】关于「%s」的相关信息：
-                            - 根据公开资料显示，这是一个当前热门话题
-                            - 建议在正文中引用权威来源以获得更准确的数据
-                            - 搜索结果摘要：%s 涉及多个维度的讨论和分析""",
-                    query, query
-            );
-            log.info("WebSearchTool 搜索完成: query={}", query);
-            return ToolCallResult.success(mockResult);
+
+            // 调用 DuckDuckGo Lite 搜索
+            String searchUrl = "https://lite.duckduckgo.com/lite/?q="
+                    + URLEncoder.encode(query, StandardCharsets.UTF_8);
+
+            Document doc = Jsoup.connect(searchUrl)
+                    .timeout(10000)
+                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .get();
+
+            // DuckDuckGo Lite 结果结构：
+            // <table> 中每行一个结果：<a> 是标题, <td> 是摘要
+            Elements results = doc.select("table tr");
+            StringBuilder sb = new StringBuilder();
+            sb.append("【搜索结果】关于「").append(query).append("」:\n");
+
+            int count = 0;
+            for (Element row : results) {
+                Elements links = row.select("a.result-link");
+                Elements snippets = row.select("td.result-snippet");
+                if (!links.isEmpty() && !snippets.isEmpty() && count < 5) {
+                    count++;
+                    sb.append(count).append(". ").append(links.text()).append("\n");
+                    sb.append("   ").append(snippets.text()).append("\n\n");
+                }
+            }
+
+            if (count == 0) {
+                sb.append("未找到相关结果，请换关键词重试。\n");
+            }
+
+            String result = sb.toString();
+            log.info("WebSearchTool 搜索完成: query={}, results={}", query, count);
+            return ToolCallResult.success(result);
+
         } catch (Exception e) {
-            log.error("WebSearchTool 执行失败", e);
+            log.error("WebSearchTool 搜索失败", e);
             return ToolCallResult.failure("搜索失败: " + e.getMessage());
         }
     }
