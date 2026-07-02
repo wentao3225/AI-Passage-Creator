@@ -34,13 +34,12 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class ImageAnalyzerAgent implements NodeAction {
 
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(?:IMAGE|ICON)_PLACEHOLDER_\\d+}}");
-
     public static final String INPUT_MAIN_TITLE = "mainTitle";
     public static final String INPUT_CONTENT = "content";
     public static final String INPUT_ENABLED_IMAGE_METHODS = "enabledImageMethods";
     public static final String OUTPUT_CONTENT_WITH_PLACEHOLDERS = "contentWithPlaceholders";
     public static final String OUTPUT_IMAGE_REQUIREMENTS = "imageRequirements";
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{(?:IMAGE|ICON)_PLACEHOLDER_\\d+}}");
     private final DashScopeChatModel chatModel;
 
     @Override
@@ -95,13 +94,13 @@ public class ImageAnalyzerAgent implements NodeAction {
                 enabledMethods,
                 mainTitle);
         List<ArticleState.ImageRequirement> reconciledRequirements = reconcileRequirementsWithContent(
-            contentWithPlaceholders,
-            validatedRequirements);
+                contentWithPlaceholders,
+                validatedRequirements);
 
         log.info("ImageAnalyzerAgent 执行完成: 配图需求数量={}, 验证后数量={}, 对齐正文后数量={}",
                 agent4Result.getImageRequirements() == null ? 0 : agent4Result.getImageRequirements().size(),
-            validatedRequirements.size(),
-            reconciledRequirements.size());
+                validatedRequirements.size(),
+                reconciledRequirements.size());
 
         // 编排模式下在配图需求节点结束时立即通知前端，避免后续图片开始生成后状态仍停在正文阶段。
         // 将配图数量拼在消息后面（格式 "AGENT4_COMPLETE:<count>"），供后端在推送 SSE 时直接使用，
@@ -182,8 +181,8 @@ public class ImageAnalyzerAgent implements NodeAction {
     }
 
     private String buildImageRequirementsPrompt(String mainTitle,
-                                               String content,
-                                               List<String> enabledMethods) {
+                                                String content,
+                                                List<String> enabledMethods) {
         if (enabledMethods != null && enabledMethods.size() == 1) {
             String fixedMethod = enabledMethods.getFirst();
             ImageMethodEnum methodEnum = ImageMethodEnum.getByValue(fixedMethod);
