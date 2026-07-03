@@ -50,10 +50,11 @@ public class ContentEvaluatorAgent implements NodeAction {
         StreamHandlerContext.send("AGENT_EVALUATING:round=" + (round + 1));
 
         // 如果已经到第二轮（轮次 ≥ 1），直接放过，不再评估
+        // 使用满分 10 确保即使阈值被调高也不会死循环
         if (round >= 1) {
             log.info("ContentEvaluatorAgent 兜底：第二轮不评估，直接通过");
             return Map.of(
-                    OUTPUT_CONTENT_SCORE, 7,
+                    OUTPUT_CONTENT_SCORE, 10,
                     OUTPUT_EVALUATION_FEEDBACK, "第二轮兜底，直接通过"
             );
         }
@@ -67,7 +68,7 @@ public class ContentEvaluatorAgent implements NodeAction {
         log.info("ContentEvaluatorAgent 解析: overallScore={}, pass={}",
                 result.overallScore, result.overallScore >= 7);
         return Map.of(
-                OUTPUT_CONTENT_SCORE, result.overallScore,
+                OUTPUT_CONTENT_SCORE, (int) Math.round(result.overallScore),
                 OUTPUT_EVALUATION_FEEDBACK, result.feedback
         );
     }
@@ -103,13 +104,13 @@ public class ContentEvaluatorAgent implements NodeAction {
      * 评估结果内部类
      */
     public static class EvaluationResult {
-        public int overallScore;
+        public double overallScore;
         public String feedback;
 
         public EvaluationResult() {
         }
 
-        public EvaluationResult(int overallScore, String feedback) {
+        public EvaluationResult(double overallScore, String feedback) {
             this.overallScore = overallScore;
             this.feedback = feedback;
         }

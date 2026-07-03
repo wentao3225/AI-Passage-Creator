@@ -772,20 +772,16 @@ const handleSSEMessage = (msg: SSEMessage) => {
             break
 
         case 'AGENT3_COMPLETE':
-            // 正文完成，进入配图分析步骤
+            // 正文完成，进入内容评估步骤
             isStreaming.value = false
             currentStep.value = 3
-            message.info('正文生成完成，正在分析配图...')
+            message.info('正文生成完成，正在评估内容质量...')
             addLog('智能体3：正文生成完成', 'success')
-            if (!hasLoggedImageAnalysisStart.value) {
-                hasLoggedImageAnalysisStart.value = true
-                addLog('智能体4：开始分析配图需求', 'info')
-            }
             break
 
         case 'AGENT4_COMPLETE':
             // 配图分析完成，进入配图生成步骤
-            currentStep.value = 4
+            currentStep.value = 5
             imageCount.value = 0
             imageProgress.value = 0
             totalImages.value = msg.imageTotal ?? msg.imageRequirements?.length ?? 5
@@ -805,7 +801,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
 
         case 'AGENT5_COMPLETE':
             // 所有配图完成，进入图文合成步骤
-            currentStep.value = 5
+            currentStep.value = 6
             article.value.images = msg.images
             message.success('配图生成完成，正在合成图文...')
             addLog('智能体5：所有配图生成完成', 'success')
@@ -813,6 +809,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
 
         case 'MERGE_COMPLETE':
             // 图文合成完成
+            currentStep.value = 7
             article.value.fullContent = msg.fullContent
             scrollToBottom()
             addLog('图文合成完成', 'success')
@@ -821,7 +818,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
         case 'ALL_COMPLETE':
             // 全部完成
             currentPhase.value = 'COMPLETED'
-            currentStep.value = 6
+            currentStep.value = 7
             isCompleted.value = true
             isCreating.value = false
             message.success('文章创作完成!')
@@ -866,14 +863,17 @@ const handleSSEMessage = (msg: SSEMessage) => {
         }
 
         case 'AGENT_EVALUATING':
+            currentStep.value = 3
             addLog('📊 正在评估内容质量...', 'info')
             break
 
         case 'AGENT_ENHANCING':
+            currentStep.value = 4
             addLog('🔧 发现可优化空间，正在增强内容...', 'info')
             break
 
         case 'AGENT4_ANALYZING':
+            currentStep.value = 5
             addLog('智能体4：正在分析配图需求...', 'info')
             break
 

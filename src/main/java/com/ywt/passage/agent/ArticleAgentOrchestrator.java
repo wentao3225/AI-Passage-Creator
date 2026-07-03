@@ -304,7 +304,7 @@ public class ArticleAgentOrchestrator {
      * content_evaluator 输出 contentScore
      * ├─ score ≥ 7 → 通过 → image_analyzer → parallel_image_generator → content_merger → END
      * └─ score < 7 → 不通过 → content_enhancer → content_evaluator（重新评估，最多 2 轮）
-     * 第 2 轮（round ≥ 1）强制通过，避免死循环
+     * 第 2 轮（round ≥ 1）评估器直接返回满分 10 强制通过 + 路由层 round ≥ 2 二次保险，杜绝死循环
      */
     private StateGraph buildPhase3Graph() throws GraphStateException {
         KeyStrategyFactory keyStrategyFactory = createKeyStrategyFactory();
@@ -323,10 +323,18 @@ public class ArticleAgentOrchestrator {
                 // ★ 条件分支：content_evaluator → image_analyzer 或 content_enhancer
                 .addConditionalEdges("content_evaluator",
                         edge_async(state -> {
-                            // 从 state中读取评估分数
+                            // 从 state中读取评估分数和增强轮次
                             Integer score = state.value(KEY_CONTENT_SCORE)
                                     .map(v -> Integer.parseInt(v.toString()))
                                     .orElse(7);//默认通过
+                            Integer round = state.value("enhancementRound")
+                                    .map(v -> Integer.parseInt(v.toString()))
+                                    .orElse(0);
+                            // 第 2 轮及以上强制通过，避免死循环
+                            if (round >= 2) {
+                                log.info("条件分支路由: 第{}轮强制通过, 路由到 image_analyzer", round);
+                                return "image_analyzer";
+                            }
                             log.info("条件分支路由: contentScore={}, 路由到 {}",
                                     score, score >= 7 ? "image_analyzer" : "content_enhancer");
                             return score >= 7 ? "image_analyzer" : "content_enhancer";
