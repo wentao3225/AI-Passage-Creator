@@ -151,7 +151,7 @@ AI-Passage-Creator 的职责：
 1. 我能在 3 分钟内讲清系统整体结构：三阶段确认（标题→大纲→正文）+ 6 节点 StateGraph 编排 + SSE 实时流式 + Human-in-the-Loop。
 2. 我能按模块讲清标题生成、大纲生成、正文生成、配图分析、并行配图、内容合并各自做什么。
 3. 我能解释：为什么当前是**预编排的确定性 Pipeline Agent**，以及通过 Tool Calling、ReAct、条件分支引入了哪些动态决策能力。
-4. 我能讲清 Tool Calling：ImageAnalyzerAgent 怎么自主决定搜索图片/生成 SVG/输出占位符，ToolRegistry 怎么管理工具注册。
+4. 我能讲清 Tool Calling：ContentGeneratorAgent 在 ReAct 循环中怎么通过 Thought 判断需要查资料、调用 WebSearchTool、将结果作为 Observation 输入下一轮。ToolRegistry 作为运行时注册中心怎么通过 `@Resource List<Tool>` 自动扫描和管理工具。
 5. 我能讲清 ReAct：ContentGeneratorAgent 怎么按章节推理-行动循环（Thought → Action → Observation），最多 3 轮，防止无限循环。
 6. 我能讲清条件分支：StateGraph 怎么从线性链升级为条件分支（content_generator → evaluator → 条件分支），为什么引入这个设计。
 7. 我能讲清 SSE 流式：怎么通过 `ThreadLocal<Consumer<String>>` 把流式处理器注入 Graph 节点，前端怎么通过 EventSource 实时接收。
@@ -160,17 +160,52 @@ AI-Passage-Creator 的职责：
 
 ----------------------------------------------------------------------------
 
-十一、项目当前升级任务清单（两周冲刺）
+## 十一、项目升级任务完成状态（截至 2026-07-03）
 
 | 任务编号 | 任务 | 状态 | 优先级 | 预计时间 | 面试价值 |
 |---------|------|------|--------|----------|----------|
-| APC-1 | Tool Calling 基础设施：Tool 接口 + ToolRegistry + 首批工具 | ☐ 待完成 | 🟡 高 | 0.5 天 | 证明 Agent 能调用工具 |
-| APC-2 | ImageAnalyzerAgent 增强：引入 Tool Calling | ☐ 待完成 | 🟡 高 | 0.5 天 | 第一个带 Tool Calling 的 Agent |
-| APC-3 | ContentGeneratorAgent ReAct 循环：按章节分段推理-行动 | ☐ 待完成 | 🟡 中 | 1-2 天 | 证明有 ReAct 能力 |
-| APC-4 | StateGraph 条件分支：新增 Evaluator + Enhancer 节点 | ☐ 待完成 | 🟡 中 | 0.5-1 天 | 证明 Graph 不再线性 |
+| APC-1 | Tool Calling 基础设施：Tool 接口 + ToolRegistry + 首批工具 | ✅ 已完成 | 🟡 高 | 0.5 天 | 证明 Agent 能调用工具 |
+| APC-2 | ImageAnalyzerAgent 增强：引入 Tool Calling | ❌ 已回滚 | 🟡 高 | — | 已识别为错误方向 |
+| APC-3 | ContentGeneratorAgent ReAct 循环：按章节分段推理-行动 | ✅ 已完成 | 🟡 中 | 1-2 天 | 证明有 ReAct 能力 |
+| APC-4 | StateGraph 条件分支：新增 Evaluator + Enhancer 节点 | ✅ 已完成 | 🟡 中 | 0.5-1 天 | 证明 Graph 不再线性 |
 | APC-5 | 乐观锁/版本号（可选加分项） | ☐ 待完成 | 🟢 低 | 0.5 天 | 解决状态竞态问题 |
 
-> 详细拆解见 `项目升级改造清单.md`（工作区根目录）。
+### 各任务完成详情
+
+**APC-1 — Tool Calling 基础设施** ✅
+- 新建 `Tool.java`（接口：getName/getDescription/getParameterDescription/execute）
+- 新建 `ToolCallResult.java`（工具调用结果封装）
+- 新建 `ToolRegistry.java`（运行时内存注册中心，通过 `@Resource List<Tool>` 自动扫描）
+- 首批工具：`ImageSearchTool.java`（Pexels/ICONIFY/EMOJI_PACK 策略搜索）、`SvgGeneratorTool.java`（DashScope LLM 生成 SVG）
+- 后续追加：`WebSearchTool.java`（Bing 网页搜索，基于 Jsoup 抓取）
+
+**APC-2 — ImageAnalyzerAgent Tool Calling** ❌ 已回滚
+- 分析发现：ImageAnalyzerAgent 内部调用 `ImageServiceStrategy.getImageAndUpload()` 已经完成图片下载和上传，再加入 Tool Calling 做同样的事是浪费
+- 结论：ImageAnalyzerAgent 不是 Tool Calling 的正确引入位置，APC-2 整体回滚
+- 保留的工具代码：`ImageSearchTool`、`SvgGeneratorTool` 仍作为可注册的工具存在（为后续扩展备用）
+
+**APC-3 — ContentGeneratorAgent ReAct 循环** ✅
+- 核心改造：ContentGeneratorAgent 按章节逐节处理，每章节引入 ReAct 循环（Thought → Action → Observation），最多 3 轮
+- Thought：LLM 判断是否缺少资料 → 输出 `DECISION: GENERATE` 或 `DECISION: CALL_TOOL`
+- Action：`ToolRegistry.callTool("web_search", args)` 调用 WebSearchTool
+- Observation：搜索结果追加到 `reactContext`，下一轮思考时可参考
+- 兜底：第 3 轮无论结果如何强制 GENERATE
+- 测试验证：全流程 4 轮测试通过（DuckDuckGo 超时→切换到 Bing 可搜索→DECISION 匹配修复→SSE 前端对接）
+- 前端增强：搜索指示器（sticky 定位 + `[web_search]` badge + 轮次显示 + 1.5s 保持时间）
+- 关键决策：WebSearchTool 使用 Bing 而不是 DuckDuckGo（中国网络屏蔽）
+
+**APC-4 — StateGraph 条件分支** ✅
+- 新建 `ContentEvaluatorAgent.java`：LLM-as-Judge 给正文打分（1-10），第二轮绕过 LLM 直接通过
+- 新建 `ContentEnhancerAgent.java`：根据评估反馈用 LLM 针对性优化正文，增强后通过 `AGENT3_STREAMING` 推送
+- Graph 改造：Phase3 从 `START→content_generator→image_analyzer→...→END` 升级为：
+  ```
+  START → content_generator → content_evaluator
+       ├─ score≥7 → image_analyzer → ... → END
+       └─ score<7 → content_enhancer → content_evaluator（≤2轮）
+  ```
+- 技术实现：Spring AI Alibaba `addConditionalEdges` + `edge_async(state→"nodeId")`
+- SSE 消息：新增 `AGENT_EVALUATING` + `AGENT_ENHANCING` 消息类型
+- 编译验证：101 个源文件 BUILD SUCCESS，0 错误
 
 ----------------------------------------------------------------------------
 
@@ -183,13 +218,13 @@ AI-Passage-Creator 的职责：
 > 是的。我在 ContentGeneratorAgent 中引入了轻量级 ReAct 循环：每章节生成时，Agent 会先思考内容是否充分（Thought），如果不够则调用工具（Action，如 web_search 查资料、calculator 做数据计算），然后基于工具结果重新生成（Observation）。最多 3 轮循环，确保内容准确性和深度，同时防止无限循环。
 
 **Q：Agent 能自己调用工具吗？**
-> 能。我在 ImageAnalyzerAgent 中实现了 Tool Calling：Agent 分析配图需求后，能自主决定调用 `image_search` 搜索图片、`svg_generator` 生成图表，或者直接输出占位符。工具调用通过 ToolRegistry 注册管理，可扩展。每个工具都有描述（给 LLM 看），LLM 输出决策格式（`DECISION`、`TOOL_NAME`、`TOOL_ARGS`），程序解析执行。
+> 能。我在 ContentGeneratorAgent 的 ReAct 循环中引入了 Tool Calling。每章节生成时，Agent 通过 Thought 阶段判断是否缺少资料，如需查资料则输出 `DECISION: CALL_TOOL` + `TOOL: web_search` + `ARGS: {"query":"..."}`，ToolRegistry 解析执行工具调用，结果作为 Observation 输入下一轮思考。工具通过 ToolRegistry 注册管理，每个工具都有名称、描述和参数说明供 LLM 决策。
 
 **Q：StateGraph 有条件分支了吗？**
-> 有。我在 Phase3 中引入了条件分支：content_generator 生成后，由 content_evaluator 评估质量（是否充分、准确），如果评估为"需要增强"（`NEED_ENHANCE`）则进入 content_enhancer 节点调用工具补充，然后重新评估；否则直接进入配图流程。这实现了动态流程控制，不再是固定线性链。
+> 有。我在 Phase3 中通过 `addConditionalEdges` 引入了条件分支：content_generator 生成正文后，由 content_evaluator（LLM-as-Judge）从五个维度（内容充实度、语言自然度、逻辑连贯性、可读性、场景感）打分（1-10）。`edge_async(state→route)` 路由函数根据 `contentScore` 判断：score≥7 直接进入配图流程，score<7 走 content_enhancer 针对性优化后重新评估。最多 2 轮循环防死锁。这打破了纯线性链，实现了 Graph 级别的动态流程控制。
 
 **Q：为什么用预编排 Pipeline，而不是让 Agent 完全自由决策？**
-> 文章生成是**确定性任务**，流程明确、可控性要求高。预编排 Pipeline 确保每个阶段产出稳定，适合生产环境。我在关键节点（配图、正文生成）引入了局部动态决策（Tool Calling、ReAct），在可控和灵活之间取平衡。如果是开放性任务（如深度调研），会引入更自由的 ReAct + Tool Calling 循环。
+> 文章生成是**确定性任务**，流程明确、可控性要求高。预编排 Pipeline 确保每个阶段产出稳定，适合生产环境。我在关键节点（正文生成 ReAct 循环、质量评估条件分支）引入了局部动态决策，在可控和灵活之间取平衡。如果是开放性任务，会引入更自由的 ReAct + Tool Calling 循环。
 
 **Q：SSE 流式输出怎么实现的？**
 > 后端通过 `ThreadLocal<Consumer<String>>` 把流式处理器注入 Graph 节点，因为 `Consumer` 不可序列化无法放入 `OverAllState`。每个 Agent 节点内部调用 LLM 的 `stream()` 方法，通过 `StreamHandlerContext` 实时推送 token 到前端。前端用 `EventSource` 建立 SSE 连接，解析 `onmessage` 事件实时渲染。`finally { clear() }` 确保 ThreadLocal 清理，防止内存泄漏。
@@ -207,12 +242,8 @@ AI-Passage-Creator 的职责：
 
 十三、给你的直接工作指令
 
-请把这个项目理解为一个“已经确定是简历主项目（多 Agent 方向）、当前处于面试补强阶段、需要在两周内完成核心代码改造和面试准备”的项目。后续协作时，请优先帮助我完成：
+请把这个项目理解为一个“已经确定是简历主项目（多 Agent 方向）、核心改造已基本完成、当前进入面试准备冲刺阶段”的项目。核心改造（Tool Calling 基础设施、ReAct 循环、条件分支）已经完成。后续协作请优先帮助我完成：
 
-1. Tool Calling 基础设施的设计与代码实现。
-2. ImageAnalyzerAgent 的 Tool Calling 增强。
-3. ContentGeneratorAgent 的 ReAct 循环实现。
-4. StateGraph 条件分支改造（Evaluator + Enhancer 节点）。
-5. 基于改造成果更新简历项目描述和面试 Q&A。
-
-不要把重点放在无边界的架构重构、引入新的 AI 框架、或前端大规模改造上。核心标准是：简历写了什么，代码和证据能支撑什么。改造前后口径要诚实区分，不要编造改造前就存在的功能。
+1. 基于改造成果更新简历项目描述和面试 Q&A。
+2. 准备面试高频追问与回答（含 StateGraph 线性链→条件分支升级、ReAct 循环设计决策、Tool Calling 落地细节、SSE 流式与 Human-in-the-Loop 技术选型）。
+3. APC-5 乐观锁/版本号（可选加分项，0.5 天）。
