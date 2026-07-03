@@ -821,6 +821,7 @@ const handleSSEMessage = (msg: SSEMessage) => {
             currentPhase.value = 'COMPLETED'
             currentStep.value = 6
             isCompleted.value = true
+            isCreating.value = false
             message.success('文章创作完成!')
             addLog('✨ 文章创作完成！', 'success')
             break
@@ -946,7 +947,6 @@ const handleConfirmOutline = async (outlineData: Array<{ section: number, title:
         message.error(err.message || '确认大纲失败')
     } finally {
         confirmLoading.value = false
-        isCreating.value = false
     }
 }
 
