@@ -153,7 +153,7 @@ public class ContentGeneratorAgent implements NodeAction {
                     sectionTitle, round + 1, truncate(thought));
 
             // ======== Action: 解析 LLM 决策 ========
-            if (thought.contains("DECISION: GENERATE")) {
+            if (thought.contains("DECISION: GENERATE") || thought.contains("GENERATE")) {
                 //  LLM 认为知识足够 → 直接生成章节正文
                 log.info("ReAct 决策: GENERATE, section={}, round={}", sectionTitle, round + 1);
                 return generateSectionContent(
@@ -162,7 +162,8 @@ public class ContentGeneratorAgent implements NodeAction {
                 );
             }
 
-            if (thought.contains("DECISION: CALL_TOOL") && round < MAX_REACT_ROUNDS - 1) {
+            if ((thought.contains("DECISION: CALL_TOOL") ||
+                    thought.contains("DECISION: SEARCH")) && round < MAX_REACT_ROUNDS - 1) {
                 // LLM 需要查资料 → 调用工具（最后一轮强制 GENERATE，不调工具）
                 String toolName = extractToolName(thought);
                 String toolArgs = extractToolArgs(thought);
