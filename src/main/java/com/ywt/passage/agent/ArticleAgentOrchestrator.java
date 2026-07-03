@@ -5,7 +5,6 @@ import com.alibaba.cloud.ai.graph.exception.GraphStateException;
 import com.alibaba.cloud.ai.graph.state.strategy.ReplaceStrategy;
 import com.ywt.passage.agent.agents.*;
 import com.ywt.passage.agent.parallel.ParallelImageGenerator;
-import com.ywt.passage.agent.config.AgentConfig;
 import com.ywt.passage.model.dto.article.ArticleState;
 import com.ywt.passage.model.enums.SseMessageTypeEnum;
 import jakarta.annotation.Resource;
@@ -20,6 +19,7 @@ import java.util.function.Consumer;
 
 import static com.alibaba.cloud.ai.graph.StateGraph.END;
 import static com.alibaba.cloud.ai.graph.StateGraph.START;
+import static com.alibaba.cloud.ai.graph.action.AsyncEdgeAction.edge_async;
 import static com.alibaba.cloud.ai.graph.action.AsyncNodeAction.node_async;
 
 /**
@@ -46,16 +46,47 @@ public class ArticleAgentOrchestrator {
     private static final String KEY_IMAGES = "images";
     private static final String KEY_FULL_CONTENT = "fullContent";
     private static final String KEY_ENABLED_IMAGE_METHODS = "enabledImageMethods";
+    private static final String KEY_CONTENT_SCORE = "contentScore";
+    private static final String KEY_EVALUATION_FEEDBACK = "evaluationFeedback";
+    private static final String KEY_ENHANCEMENT_ROUND = "enhancementRound";
+    /**
+     * 标题生成
+     */
     @Resource
     private TitleGeneratorAgent titleGeneratorAgent;
+    /**
+     * 大纲生成
+     */
     @Resource
     private OutlineGeneratorAgent outlineGeneratorAgent;
+    /**
+     * 内容生成
+     */
     @Resource
     private ContentGeneratorAgent contentGeneratorAgent;
+    /**
+     * 内容评估
+     */
+    @Resource
+    private ContentEvaluatorAgent contentEvaluatorAgent;
+    /**
+     * 内容增强
+     */
+    @Resource
+    private ContentEnhancerAgent contentEnhancerAgent;
+    /**
+     * 图片分析
+     */
     @Resource
     private ImageAnalyzerAgent imageAnalyzerAgent;
+    /**
+     * 图片生成（并行）
+     */
     @Resource
     private ParallelImageGenerator parallelImageGenerator;
+    /**
+     * 图文合并
+     */
     @Resource
     private ContentMergerAgent contentMergerAgent;
 
@@ -174,6 +205,7 @@ public class ArticleAgentOrchestrator {
             inputs.put(KEY_OUTLINE, state.getOutline());
             inputs.put(KEY_STYLE, state.getStyle());
             inputs.put(KEY_ENABLED_IMAGE_METHODS, state.getEnabledImageMethods());
+            inputs.put(KEY_ENHANCEMENT_ROUND, 0);  // 初始增强轮次为 0
 
             StateGraph graph = buildPhase3Graph();
             CompiledGraph compiledGraph = graph.compile();
@@ -266,8 +298,13 @@ public class ArticleAgentOrchestrator {
     }
 
     /**
-     * 构建阶段3图：正文+配图生成（顺序执行）
-     * 流程：正文生成 -> 配图需求分析 -> 并行配图生成 -> 图文合成
+     * 构建阶段 3 图：正文生成 → 质量评估（条件分支） → 配图需求分析 → 并行配图生成 → 图文合成
+     * <p>
+     * 条件分支逻辑：
+     * content_evaluator 输出 contentScore
+     * ├─ score ≥ 7 → 通过 → image_analyzer → parallel_image_generator → content_merger → END
+     * └─ score < 7 → 不通过 → content_enhancer → content_evaluator（重新评估，最多 2 轮）
+     * 第 2 轮（round ≥ 1）强制通过，避免死循环
      */
     private StateGraph buildPhase3Graph() throws GraphStateException {
         KeyStrategyFactory keyStrategyFactory = createKeyStrategyFactory();
@@ -275,12 +312,31 @@ public class ArticleAgentOrchestrator {
         return new StateGraph(keyStrategyFactory)
                 // 节点定义
                 .addNode("content_generator", node_async(contentGeneratorAgent))
+                .addNode("content_evaluator", node_async(contentEvaluatorAgent))
+                .addNode("content_enhancer", node_async(contentEnhancerAgent))
                 .addNode("image_analyzer", node_async(imageAnalyzerAgent))
                 .addNode("parallel_image_generator", node_async(parallelImageGenerator))
                 .addNode("content_merger", node_async(contentMergerAgent))
-                // 边定义：顺序执行
+                // 边定义
                 .addEdge(START, "content_generator")
-                .addEdge("content_generator", "image_analyzer")
+                .addEdge("content_generator", "content_evaluator")
+                // ★ 条件分支：content_evaluator → image_analyzer 或 content_enhancer
+                .addConditionalEdges("content_evaluator",
+                        edge_async(state -> {
+                            // 从 state中读取评估分数
+                            Integer score = state.value(KEY_CONTENT_SCORE)
+                                    .map(v -> Integer.parseInt(v.toString()))
+                                    .orElse(7);//默认通过
+                            log.info("条件分支路由: contentScore={}, 路由到 {}",
+                                    score, score >= 7 ? "image_analyzer" : "content_enhancer");
+                            return score >= 7 ? "image_analyzer" : "content_enhancer";
+                        }), Map.of(
+                                "image_analyzer", "image_analyzer",
+                                "content_enhancer", "content_enhancer"
+                        ))
+                // content_enhancer → content_evaluator（循环回去重新评估）
+                .addEdge("content_enhancer", "content_evaluator")
+                // 通过后的线性链
                 .addEdge("image_analyzer", "parallel_image_generator")
                 .addEdge("parallel_image_generator", "content_merger")
                 .addEdge("content_merger", END);
@@ -307,6 +363,9 @@ public class ArticleAgentOrchestrator {
             strategies.put(KEY_IMAGES, new ReplaceStrategy());
             strategies.put(KEY_FULL_CONTENT, new ReplaceStrategy());
             strategies.put(KEY_ENABLED_IMAGE_METHODS, new ReplaceStrategy());
+            strategies.put(KEY_CONTENT_SCORE, new ReplaceStrategy());
+            strategies.put(KEY_EVALUATION_FEEDBACK, new ReplaceStrategy());
+            strategies.put(KEY_ENHANCEMENT_ROUND, new ReplaceStrategy());
             return strategies;
         };
     }

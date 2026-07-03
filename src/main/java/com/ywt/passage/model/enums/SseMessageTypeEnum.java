@@ -12,7 +12,7 @@ public enum SseMessageTypeEnum {
      * 智能体1完成（生成标题方案）
      */
     AGENT1_COMPLETE("AGENT1_COMPLETE", "标题方案生成完成"),
-    
+
     /**
      * 标题方案生成完成（等待用户选择）
      */
@@ -27,7 +27,7 @@ public enum SseMessageTypeEnum {
      * 智能体2完成（生成大纲）
      */
     AGENT2_COMPLETE("AGENT2_COMPLETE", "大纲生成完成"),
-    
+
     /**
      * 大纲生成完成（等待用户编辑）
      */
@@ -62,6 +62,8 @@ public enum SseMessageTypeEnum {
      * 图文合成完成
      */
     MERGE_COMPLETE("MERGE_COMPLETE", "图文合成完成"),
+    AGENT_EVALUATING("AGENT_EVALUATING","正在评估内容质量"),
+    AGENT_ENHANCING("AGENT_ENHANCING","正在增强内容"),
 
     /**
      * 全部完成

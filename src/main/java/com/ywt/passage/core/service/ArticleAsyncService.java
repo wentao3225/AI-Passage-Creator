@@ -314,6 +314,27 @@ public class ArticleAsyncService {
             return data;
         }
 
+        // 处理 AGENT_EVALUATING 消息
+        if (message.startsWith("AGENT_EVALUATING")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "AGENT_EVALUATING");
+            int colonIdx = message.indexOf(':');
+            if (colonIdx > 0) {
+                data.put("content", message.substring(colonIdx + 1));
+            }
+            return data;
+        }
+
+        // 处理 AGENT_ENHANCING 消息
+        if (message.startsWith("AGENT_ENHANCING")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "AGENT_ENHANCING");
+            int colonIdx = message.indexOf(':');
+            if (colonIdx > 0) {
+                data.put("content", message.substring(colonIdx + 1));
+            }
+            return data;
+        }
         // 处理完成消息（枚举值）
         return buildCompleteMessageData(message, state);
     }

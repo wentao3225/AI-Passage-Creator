@@ -498,6 +498,8 @@ const agentSteps = [
     { title: '生成标题', description: 'AI 分析选题，生成吸睛标题' },
     { title: '规划大纲', description: '构建文章结构，理清脉络' },
     { title: '撰写正文', description: '流式生成高质量文章内容' },
+    { title: '内容评估', description: 'AI 评估正文质量' },
+    { title: '内容增强', description: '针对薄弱环节优化' },
     { title: '分析配图', description: '智能分析配图需求和位置' },
     { title: '生成配图', description: '自动匹配高清无版权图片' },
     { title: '图文合成', description: '将配图插入正文，完美呈现' },
@@ -863,6 +865,14 @@ const handleSSEMessage = (msg: SSEMessage) => {
             break
         }
 
+        case 'AGENT_EVALUATING':
+            addLog('📊 正在评估内容质量...', 'info')
+            break
+
+        case 'AGENT_ENHANCING':
+            addLog('🔧 发现可优化空间，正在增强内容...', 'info')
+            break
+
         case 'AGENT4_ANALYZING':
             addLog('智能体4：正在分析配图需求...', 'info')
             break
@@ -926,7 +936,7 @@ const handleConfirmTitle = async (data: { mainTitle: string, subTitle: string, u
 
 // 确认大纲
 const handleConfirmOutline = async (outlineData: Array<{ section: number, title: string, points: string[] }>) => {
-    if (confirmLoading.value) return 
+    if (confirmLoading.value) return
     confirmLoading.value = true
     isCreating.value = true
     try {

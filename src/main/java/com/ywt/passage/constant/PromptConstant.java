@@ -5,363 +5,424 @@ package com.ywt.passage.constant;
  */
 public interface PromptConstant {
 
-  /**
-   * 智能体1：生成标题方案
-   */
-  String AGENT1_TITLE_PROMPT = """
-      你是一位爆款文章标题专家,擅长创作吸引人的标题。
+    /**
+     * 智能体1：生成标题方案
+     */
+    String AGENT1_TITLE_PROMPT = """
+            你是一位爆款文章标题专家,擅长创作吸引人的标题。
+            
+            根据以下选题,生成 3-5 个爆款文章标题方案:
+            选题：{topic}
+            
+            要求:
+            1. 每个方案包含主标题和副标题
+            2. 主标题要包含数字、情绪化词汇,吸引眼球
+            3. 副标题要补充说明,增强吸引力
+            4. 标题要简洁有力,不超过30字
+            5. 不同方案要有不同的切入角度
+            6. 符合新媒体爆款文章的风格
+            7. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
+            8. 不要把 JSON 包在字符串里，不要返回带解释文本的内容
+            
+            请直接返回 JSON 格式,不要有其他内容:
+            [
+              {
+                "mainTitle": "主标题1",
+                "subTitle": "副标题1"
+              },
+              {
+                "mainTitle": "主标题2",
+                "subTitle": "副标题2"
+              },
+              {
+                "mainTitle": "主标题3",
+                "subTitle": "副标题3"
+              }
+            ]
+            """;
 
-      根据以下选题,生成 3-5 个爆款文章标题方案:
-      选题：{topic}
+    /**
+     * 智能体2：生成大纲
+     */
+    String AGENT2_OUTLINE_PROMPT = """
+            你是一位专业的文章策划师,擅长设计文章结构。
+            
+            根据以下标题,生成文章大纲:
+            主标题：{mainTitle}
+            副标题：{subTitle}
+            {descriptionSection}
+            
+            要求:
+            1. 大纲要有清晰的逻辑结构
+            2. 包含开头引入、核心观点(3-5个)、结尾升华
+            3. 每个章节要有明确的标题和核心要点(2-3个)
+            4. 适合2000字左右的文章
+            5. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
+            6. JSON 字段名必须严格使用 section、title、points，不能出现多余引号、前后空格、注释或尾随逗号
+            
+            请直接返回 JSON 格式,不要有其他内容:
+            {
+              "sections": [
+                {
+                  "section": 1,
+                  "title": "章节标题",
+                  "points": ["要点1", "要点2"]
+                }
+              ]
+            }
+            """;
 
-      要求:
-      1. 每个方案包含主标题和副标题
-      2. 主标题要包含数字、情绪化词汇,吸引眼球
-      3. 副标题要补充说明,增强吸引力
-      4. 标题要简洁有力,不超过30字
-      5. 不同方案要有不同的切入角度
-      6. 符合新媒体爆款文章的风格
-      7. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
-      8. 不要把 JSON 包在字符串里，不要返回带解释文本的内容
+    /**
+     * 用户补充描述部分（动态插入到 AGENT2_OUTLINE_PROMPT）
+     */
+    String AGENT2_DESCRIPTION_SECTION = """
+            
+            用户补充要求：{userDescription}
+            请在大纲中充分体现用户的补充要求。
+            """;
 
-      请直接返回 JSON 格式,不要有其他内容:
-      [
-        {
-          "mainTitle": "主标题1",
-          "subTitle": "副标题1"
-        },
-        {
-          "mainTitle": "主标题2",
-          "subTitle": "副标题2"
-        },
-        {
-          "mainTitle": "主标题3",
-          "subTitle": "副标题3"
-        }
-      ]
-      """;
+    /**
+     * AI 修改大纲 Prompt
+     */
+    String AI_MODIFY_OUTLINE_PROMPT = """
+            你是一位专业的文章策划师,擅长根据用户反馈优化文章结构。
+            
+            当前文章信息：
+            主标题：{mainTitle}
+            副标题：{subTitle}
+            
+            当前大纲：
+            {currentOutline}
+            
+            用户修改建议：
+            {modifySuggestion}
+            
+            要求：
+            1. 根据用户的修改建议，调整大纲结构
+            2. 保持大纲的逻辑性和完整性
+            3. 如果用户建议删除某章节，则删除；建议增加则增加；建议修改则修改
+            4. 保持 JSON 格式不变
+            5. 章节序号自动重新排序
+            
+            请直接返回修改后的 JSON 格式大纲，不要有其他内容：
+            {
+              "sections": [
+                {
+                  "section": 1,
+                  "title": "章节标题",
+                  "points": ["要点1", "要点2"]
+                }
+              ]
+            }
+            """;
 
-  /**
-   * 智能体2：生成大纲
-   */
-  String AGENT2_OUTLINE_PROMPT = """
-      你是一位专业的文章策划师,擅长设计文章结构。
+    /**
+     * 智能体3：生成正文
+     */
+    String AGENT3_CONTENT_PROMPT = """
+            你是一位资深的内容创作者,擅长把内容写得自然、顺口、像真人在说话，而不是像公文或宣传稿。
+            
+            根据以下大纲,创作文章正文:
+            主标题：{mainTitle}
+            副标题：{subTitle}
+            大纲：
+            {outline}
+            
+            要求:
+            1. 内容要充实,每个章节300-400字
+            2. 语言自然流畅,多用口语化表达和大白话,像在和读者聊天
+            3. 多写具体场景、动作、感受和例子,少写空泛总结和正确废话
+            4. 适当使用有记忆点的句子,但不要刻意堆砌金句
+            5. 添加自然过渡句,确保逻辑连贯,不要生硬地“首先/其次/最后”排列
+            6. 明确避免公文腔、宣传稿腔、教材腔,不要频繁使用“综上所述、值得注意的是、由此可见、赋能、助力、在此基础上”等表达
+            7. 即使是技术类内容,也要写得让普通读者能顺着读下去,不要像白皮书或汇报材料
+            8. 使用 Markdown 格式,章节使用 ## 标题
+            9. 每段尽量长短有变化,多用短句,让阅读节奏更轻快
+            
+            请直接返回 Markdown 格式的正文内容,不要有其他内容。
+            """;
 
-      根据以下标题,生成文章大纲:
-      主标题：{mainTitle}
-      副标题：{subTitle}
-      {descriptionSection}
+    /**
+     * 智能体4：分析配图需求（支持多种图片来源，使用占位符方案）
+     */
+    String AGENT4_IMAGE_REQUIREMENTS_PROMPT = """
+            你是一位专业的新媒体编辑,擅长为文章配图。
+            
+            根据以下文章内容,分析配图需求,并在正文中插入图片占位符:
+            主标题：{mainTitle}
+            正文：
+            {content}
+            
+            当前任务允许使用的配图方式（未列出的方式全部视为禁用）：
+            {availableMethods}
+            
+            要求:
+            1. 识别需要配图的位置(封面、关键章节、段落之间等)
+            2. 根据文章内容和结构灵活决定配图数量，避免过多或过少
+            3. **在正文中插入占位符**：使用以下两种格式
+               - 普通图片占位符：{{IMAGE_PLACEHOLDER_N}}，其中 N 为配图序号（1, 2, 3...），必须独占一行
+               - Icon 占位符：{{ICON_PLACEHOLDER_N}}，可以放在文字行内任意位置（用于 ICONIFY 类型）
+               - 注意：position=1 的封面图不需要占位符，不要放在正文中
+               - 配图占位符可以放在任意合适位置（章节标题后、段落之间、列表项中、文字行内等）
+            4. **imageSource 只能从上述“允许使用的配图方式”中选择**，绝对不能输出未列出的方式
+            5. 如果当前任务只允许 2 种方式，那么最终结果中的所有 imageSource 也只能是这 2 种之一
+            6. 严格按照以下“已启用方式使用说明”填写字段；未启用的方式不要输出、不要参考、不要臆造：
+              {methodUsageGuide}
+            7. 如果某个位置原本更适合其他图片来源，也必须从当前允许的方式中选一个最接近的来源，不能自行新增来源
+            8. 下方示例 JSON 仅用于展示字段结构，imageSource 必须替换成“当前任务允许使用的方式”，不要照抄示例值
+            9. placeholderId 必须与正文中插入的占位符完全一致
+            10. position=1 为封面图
+            11. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
+            12. 不要把 JSON 包在字符串里，不要返回解释文本
+            
+            请直接返回 JSON 格式,不要有其他内容:
+            {
+              "contentWithPlaceholders": "## 章节标题1\\n\\n第一段内容介绍核心概念。\\n\\n{{IMAGE_PLACEHOLDER_1}}\\n\\n第二段深入分析，这里有个图标 {{ICON_PLACEHOLDER_1}} 表示重点。继续详细说明...\\n\\n## 章节标题2\\n\\n第三段阐述应用场景。\\n\\n{{IMAGE_PLACEHOLDER_2}}\\n\\n第四段总结要点。",
+              "imageRequirements": [
+                {
+                  "position": 1,
+                  "type": "cover",
+                  "sectionTitle": "",
+                  "imageSource": "SVG_DIAGRAM",
+                  "keywords": "",
+                  "prompt": "绘制一张现代科技风格的AI主题概念示意图，包含神经网络节点与连接关系，适合作为文章封面",
+                  "placeholderId": ""
+                },
+                {
+                  "position": 2,
+                  "type": "section",
+                  "sectionTitle": "章节标题1",
+                  "imageSource": "PEXELS",
+                  "keywords": "business success teamwork office",
+                  "prompt": "",
+                  "placeholderId": "{{IMAGE_PLACEHOLDER_1}}"
+                },
+                {
+                  "position": 3,
+                  "type": "inline",
+                  "sectionTitle": "",
+                  "imageSource": "ICONIFY",
+                  "keywords": "check circle",
+                  "prompt": "",
+                  "placeholderId": "{{ICON_PLACEHOLDER_1}}"
+                },
+                {
+                  "position": 4,
+                  "type": "section",
+                  "sectionTitle": "章节标题2",
+                  "imageSource": "MERMAID",
+                  "keywords": "",
+                  "prompt": "flowchart TB\\n    A[用户请求] --> B[负载均衡]\\n    B --> C[应用服务器]",
+                  "placeholderId": "{{IMAGE_PLACEHOLDER_2}}"
+                }
+              ]
+            }
+            """;
 
-      要求:
-      1. 大纲要有清晰的逻辑结构
-      2. 包含开头引入、核心观点(3-5个)、结尾升华
-      3. 每个章节要有明确的标题和核心要点(2-3个)
-      4. 适合2000字左右的文章
-      5. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
-      6. JSON 字段名必须严格使用 section、title、points，不能出现多余引号、前后空格、注释或尾随逗号
+    /**
+     * 智能体4：单一配图来源时的轻量需求分析 Prompt
+     */
+    String AGENT4_SINGLE_METHOD_IMAGE_REQUIREMENTS_PROMPT = """
+            你是一位专业的新媒体编辑,擅长为文章配图。
+            
+            根据以下文章内容,分析配图需求,并在正文中插入图片占位符:
+            主标题：{mainTitle}
+            正文：
+            {content}
+            
+            本次任务固定只能使用一种配图方式：{fixedMethod}
+            该方式说明：{fixedMethodDescription}
+            
+            要求:
+            1. 识别需要配图的位置(封面、关键章节、段落之间等)
+            2. 根据文章内容和结构灵活决定配图数量，避免过多或过少
+            3. 不要再判断或比较图片来源，所有 imageSource 必须固定写成 {fixedMethod}
+            4. **在正文中插入占位符**：
+               - 普通图片占位符使用 {{IMAGE_PLACEHOLDER_N}}，其中 N 为配图序号（1, 2, 3...），必须独占一行
+               - Icon 占位符只在 {fixedMethod} 为 ICONIFY 时才可使用，格式为 {{ICON_PLACEHOLDER_N}}
+               - position=1 的封面图不需要占位符，不要放在正文中
+            5. 严格按照以下方式填写字段：
+              {methodUsageGuide}
+            6. placeholderId 必须与正文中插入的占位符完全一致
+            7. position=1 为封面图
+            8. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
+            9. 不要把 JSON 包在字符串里，不要返回解释文本
+            
+            请直接返回 JSON 格式,不要有其他内容:
+            {
+              "contentWithPlaceholders": "## 章节标题1\\n\\n第一段内容介绍核心概念。\\n\\n{{IMAGE_PLACEHOLDER_1}}\\n\\n第二段深入分析。\\n\\n## 章节标题2\\n\\n第三段阐述应用场景。\\n\\n{{IMAGE_PLACEHOLDER_2}}\\n\\n第四段总结要点。",
+              "imageRequirements": [
+                {
+                  "position": 1,
+                  "type": "cover",
+                  "sectionTitle": "",
+                  "imageSource": "{fixedMethod}",
+                  "keywords": "",
+                  "prompt": "围绕文章主题生成适合作为封面的配图描述",
+                  "placeholderId": ""
+                },
+                {
+                  "position": 2,
+                  "type": "section",
+                  "sectionTitle": "章节标题1",
+                  "imageSource": "{fixedMethod}",
+                  "keywords": "",
+                  "prompt": "围绕章节核心观点生成配图描述",
+                  "placeholderId": "{{IMAGE_PLACEHOLDER_1}}"
+                }
+              ]
+            }
+            """;
 
-      请直接返回 JSON 格式,不要有其他内容:
-      {
-        "sections": [
-          {
-            "section": 1,
-            "title": "章节标题",
-            "points": ["要点1", "要点2"]
-          }
-        ]
-      }
-      """;
+    /**
+     * SVG 概念示意图生成 Prompt
+     */
+    String SVG_DIAGRAM_GENERATION_PROMPT = """
+            ### 背景 ###
+            你是一位资深的信息可视化设计师，擅长将抽象概念转化为直观易懂的 SVG 示意图。
+            你的作品曾用于知名媒体和技术文档，风格简洁现代、逻辑清晰。
+            
+            ### 需求 ###
+            {requirement}
+            
+            ### 任务步骤 ###
+            1. 分析需求：理解要表达的核心概念和逻辑关系
+            2. 设计布局：确定图形的整体结构（中心辐射、层级、流程等）
+            3. 选择元素：使用圆形、矩形、箭头、连线等基础图形
+            4. 配色美化：应用现代配色方案，确保视觉协调
+            5. 生成代码：输出完整规范的 SVG 代码
+            
+            ### 技术规范 ###
+            - 必须包含 <?xml version="1.0" encoding="UTF-8"?> 声明
+            - 必须设置 viewBox="0 0 800 600"，便于自适应缩放
+            - 字体使用 font-family="Arial, sans-serif"，确保跨平台兼容
+            - 使用语义化的 id 和 class 命名
+            
+            ### 设计风格 ###
+            - 配色：蓝色系为主（#4A90D9、#6BB3F0、#E8F4FC），辅以渐变效果
+            - 布局：留白充足，元素间距均匀，层次分明
+            - 文字：标签简洁，字号适中（14-18px），颜色对比清晰
+            - 连线：使用带箭头的线条表示方向和关系，线条粗细 2-3px
+            
+            ### 输出要求 ###
+            直接返回完整的 SVG XML 代码，不要有任何解释或其他内容。
+            """;
 
-  /**
-   * 用户补充描述部分（动态插入到 AGENT2_OUTLINE_PROMPT）
-   */
-  String AGENT2_DESCRIPTION_SECTION = """
+    // region 文章风格 Prompt
 
-      用户补充要求：{userDescription}
-      请在大纲中充分体现用户的补充要求。
-      """;
+    /**
+     * 科技风格 Prompt 附加
+     */
+    String STYLE_TECH_PROMPT = """
+            
+            **重要：请使用科技风格进行创作**
+            - 语言专业、严谨，多使用专业术语和行业词汇
+            - 逻辑清晰，重视数据和事实支撑
+            - 叙述客观理性，避免主观情感表达
+            - 突出技术创新、发展趋势、解决方案
+            - 可适当引用权威资料或专家观点
+            """;
 
-  /**
-   * AI 修改大纲 Prompt
-   */
-  String AI_MODIFY_OUTLINE_PROMPT = """
-      你是一位专业的文章策划师,擅长根据用户反馈优化文章结构。
+    /**
+     * 情感风格 Prompt 附加
+     */
+    String STYLE_EMOTIONAL_PROMPT = """
+            
+            **重要：请使用情感风格进行创作**
+            - 语言温暖细腻，富有感染力和共鸣
+            - 善用比喻、排比等修辞手法增强表现力
+            - 注重情感表达，讲述真实故事和感悟
+            - 引发读者情感共鸣，传递正能量
+            - 适当使用抒情语句，增加文章温度
+            """;
 
-      当前文章信息：
-      主标题：{mainTitle}
-      副标题：{subTitle}
+    /**
+     * 教育风格 Prompt 附加
+     */
+    String STYLE_EDUCATIONAL_PROMPT = """
+            
+            **重要：请使用教育风格进行创作**
+            - 语言通俗易懂，深入浅出地讲解概念
+            - 结构清晰，循序渐进，便于学习理解
+            - 多用案例、类比帮助读者理解复杂内容
+            - 总结重点知识点，提供实用的学习建议
+            - 鼓励思考，启发读者自主学习和探索
+            """;
 
-      当前大纲：
-      {currentOutline}
+    /**
+     * 轻松幽默风格 Prompt 附加
+     */
+    String STYLE_HUMOROUS_PROMPT = """
+            
+            **重要：请使用轻松幽默风格进行创作**
+            - 语言轻松活泼，幽默风趣
+            - 善用网络流行语、俏皮话和有趣的比喻
+            - 适当自嘲或调侃，增加趣味性
+            - 内容轻松易读，让读者在愉快中获取信息
+            - 可加入一些有趣的段子或梗，但不失专业性
+            """;
 
-      用户修改建议：
-      {modifySuggestion}
+    /**
+     * 智能体（Evaluator）：内容质量评估
+     * 评估正文的整体质量，给出 1-10 的分数和改进建议
+     */
+    String AGENT_EVALUATOR_PROMPT = """
+            你是一位专业的内容质量评估专家。
+            
+            请评估以下文章正文的整体质量：
+            
+            文章标题：{mainTitle}
+            
+            正文内容：
+            {content}
+            
+            评估维度（每项 1-10 分，加权计算总分）：
+            1. 内容充实度（权重 30%）：章节内容是否足够丰富、300-400 字/章节
+            2. 语言自然度（权重 25%）：是否口语化、是否像真人在说话、是否有公文腔
+            3. 逻辑连贯性（权重 20%）：章节之间过渡是否自然、逻辑是否通顺
+            4. 可读性（权重 15%）：段落长短是否有变化、阅读节奏是否轻快
+            5. 场景感（权重 10%）：是否有具体场景、动作、感受和例子
+            
+            判定标准：
+            - overallScore >= 7：质量合格，通过
+            - overallScore < 7：质量不合格，需要增强优化
+            
+            请直接返回 JSON 格式，不要有其他内容：
+            {
+              "overallScore": 8,
+              "feedback": "整体质量不错，语言自然流畅。第3章节可以增加更多具体例子来增强场景感。"
+            }
+            """;
 
-      要求：
-      1. 根据用户的修改建议，调整大纲结构
-      2. 保持大纲的逻辑性和完整性
-      3. 如果用户建议删除某章节，则删除；建议增加则增加；建议修改则修改
-      4. 保持 JSON 格式不变
-      5. 章节序号自动重新排序
+    /**
+     * 智能体（Enhancer）：内容增强优化
+     * 根据评估反馈，重新生成/优化正文
+     */
+    String AGENT_ENHANCER_PROMPT = """
+            你是一位资深的内容优化专家，专注提升文章质量。
+            
+            请根据以下评估反馈，重新优化文章正文：
+            
+            文章标题：{mainTitle}
+            
+            当前正文：
+            {content}
+            
+            评估反馈（需要改进的地方）：
+            {feedback}
+            
+            优化要求：
+            1. 针对评估反馈中提到的具体问题，逐条改进
+            2. 如果反馈说"章节内容不够丰富"，则增加 1-2 个具体例子、场景或数据
+            3. 如果反馈说"语言有公文腔"，则将正式表达改为口语化、聊天式的表达
+            4. 如果反馈说"逻辑不连贯"，则添加过渡句，让章节之间自然衔接
+            5. 如果反馈说"缺乏场景感"，则加入具体的动作、感受、画面描写
+            6. 保持 Markdown 格式和章节结构不变（## 标题）
+            7. 优化后的正文不要出现任何解释、标注或评论，就是纯正文
+            
+            请直接返回优化后的完整 Markdown 正文，不要有其他内容。
+            """;
 
-      请直接返回修改后的 JSON 格式大纲，不要有其他内容：
-      {
-        "sections": [
-          {
-            "section": 1,
-            "title": "章节标题",
-            "points": ["要点1", "要点2"]
-          }
-        ]
-      }
-      """;
-
-  /**
-   * 智能体3：生成正文
-   */
-  String AGENT3_CONTENT_PROMPT = """
-      你是一位资深的内容创作者,擅长把内容写得自然、顺口、像真人在说话，而不是像公文或宣传稿。
-
-      根据以下大纲,创作文章正文:
-      主标题：{mainTitle}
-      副标题：{subTitle}
-      大纲：
-      {outline}
-
-      要求:
-      1. 内容要充实,每个章节300-400字
-      2. 语言自然流畅,多用口语化表达和大白话,像在和读者聊天
-      3. 多写具体场景、动作、感受和例子,少写空泛总结和正确废话
-      4. 适当使用有记忆点的句子,但不要刻意堆砌金句
-      5. 添加自然过渡句,确保逻辑连贯,不要生硬地“首先/其次/最后”排列
-      6. 明确避免公文腔、宣传稿腔、教材腔,不要频繁使用“综上所述、值得注意的是、由此可见、赋能、助力、在此基础上”等表达
-      7. 即使是技术类内容,也要写得让普通读者能顺着读下去,不要像白皮书或汇报材料
-      8. 使用 Markdown 格式,章节使用 ## 标题
-      9. 每段尽量长短有变化,多用短句,让阅读节奏更轻快
-
-      请直接返回 Markdown 格式的正文内容,不要有其他内容。
-      """;
-
-  /**
-   * 智能体4：分析配图需求（支持多种图片来源，使用占位符方案）
-   */
-  String AGENT4_IMAGE_REQUIREMENTS_PROMPT = """
-      你是一位专业的新媒体编辑,擅长为文章配图。
-
-      根据以下文章内容,分析配图需求,并在正文中插入图片占位符:
-      主标题：{mainTitle}
-      正文：
-      {content}
-
-      当前任务允许使用的配图方式（未列出的方式全部视为禁用）：
-      {availableMethods}
-
-      要求:
-      1. 识别需要配图的位置(封面、关键章节、段落之间等)
-      2. 根据文章内容和结构灵活决定配图数量，避免过多或过少
-      3. **在正文中插入占位符**：使用以下两种格式
-         - 普通图片占位符：{{IMAGE_PLACEHOLDER_N}}，其中 N 为配图序号（1, 2, 3...），必须独占一行
-         - Icon 占位符：{{ICON_PLACEHOLDER_N}}，可以放在文字行内任意位置（用于 ICONIFY 类型）
-         - 注意：position=1 的封面图不需要占位符，不要放在正文中
-         - 配图占位符可以放在任意合适位置（章节标题后、段落之间、列表项中、文字行内等）
-      4. **imageSource 只能从上述“允许使用的配图方式”中选择**，绝对不能输出未列出的方式
-      5. 如果当前任务只允许 2 种方式，那么最终结果中的所有 imageSource 也只能是这 2 种之一
-      6. 严格按照以下“已启用方式使用说明”填写字段；未启用的方式不要输出、不要参考、不要臆造：
-        {methodUsageGuide}
-      7. 如果某个位置原本更适合其他图片来源，也必须从当前允许的方式中选一个最接近的来源，不能自行新增来源
-      8. 下方示例 JSON 仅用于展示字段结构，imageSource 必须替换成“当前任务允许使用的方式”，不要照抄示例值
-      9. placeholderId 必须与正文中插入的占位符完全一致
-      10. position=1 为封面图
-      11. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
-      12. 不要把 JSON 包在字符串里，不要返回解释文本
-
-      请直接返回 JSON 格式,不要有其他内容:
-      {
-        "contentWithPlaceholders": "## 章节标题1\\n\\n第一段内容介绍核心概念。\\n\\n{{IMAGE_PLACEHOLDER_1}}\\n\\n第二段深入分析，这里有个图标 {{ICON_PLACEHOLDER_1}} 表示重点。继续详细说明...\\n\\n## 章节标题2\\n\\n第三段阐述应用场景。\\n\\n{{IMAGE_PLACEHOLDER_2}}\\n\\n第四段总结要点。",
-        "imageRequirements": [
-          {
-            "position": 1,
-            "type": "cover",
-            "sectionTitle": "",
-            "imageSource": "SVG_DIAGRAM",
-            "keywords": "",
-            "prompt": "绘制一张现代科技风格的AI主题概念示意图，包含神经网络节点与连接关系，适合作为文章封面",
-            "placeholderId": ""
-          },
-          {
-            "position": 2,
-            "type": "section",
-            "sectionTitle": "章节标题1",
-            "imageSource": "PEXELS",
-            "keywords": "business success teamwork office",
-            "prompt": "",
-            "placeholderId": "{{IMAGE_PLACEHOLDER_1}}"
-          },
-          {
-            "position": 3,
-            "type": "inline",
-            "sectionTitle": "",
-            "imageSource": "ICONIFY",
-            "keywords": "check circle",
-            "prompt": "",
-            "placeholderId": "{{ICON_PLACEHOLDER_1}}"
-          },
-          {
-            "position": 4,
-            "type": "section",
-            "sectionTitle": "章节标题2",
-            "imageSource": "MERMAID",
-            "keywords": "",
-            "prompt": "flowchart TB\\n    A[用户请求] --> B[负载均衡]\\n    B --> C[应用服务器]",
-            "placeholderId": "{{IMAGE_PLACEHOLDER_2}}"
-          }
-        ]
-      }
-      """;
-
-  /**
-   * 智能体4：单一配图来源时的轻量需求分析 Prompt
-   */
-  String AGENT4_SINGLE_METHOD_IMAGE_REQUIREMENTS_PROMPT = """
-      你是一位专业的新媒体编辑,擅长为文章配图。
-
-      根据以下文章内容,分析配图需求,并在正文中插入图片占位符:
-      主标题：{mainTitle}
-      正文：
-      {content}
-
-      本次任务固定只能使用一种配图方式：{fixedMethod}
-      该方式说明：{fixedMethodDescription}
-
-      要求:
-      1. 识别需要配图的位置(封面、关键章节、段落之间等)
-      2. 根据文章内容和结构灵活决定配图数量，避免过多或过少
-      3. 不要再判断或比较图片来源，所有 imageSource 必须固定写成 {fixedMethod}
-      4. **在正文中插入占位符**：
-         - 普通图片占位符使用 {{IMAGE_PLACEHOLDER_N}}，其中 N 为配图序号（1, 2, 3...），必须独占一行
-         - Icon 占位符只在 {fixedMethod} 为 ICONIFY 时才可使用，格式为 {{ICON_PLACEHOLDER_N}}
-         - position=1 的封面图不需要占位符，不要放在正文中
-      5. 严格按照以下方式填写字段：
-        {methodUsageGuide}
-      6. placeholderId 必须与正文中插入的占位符完全一致
-      7. position=1 为封面图
-      8. 严禁使用 markdown 代码块（不要使用 ```json 或 ```）
-      9. 不要把 JSON 包在字符串里，不要返回解释文本
-
-      请直接返回 JSON 格式,不要有其他内容:
-      {
-        "contentWithPlaceholders": "## 章节标题1\\n\\n第一段内容介绍核心概念。\\n\\n{{IMAGE_PLACEHOLDER_1}}\\n\\n第二段深入分析。\\n\\n## 章节标题2\\n\\n第三段阐述应用场景。\\n\\n{{IMAGE_PLACEHOLDER_2}}\\n\\n第四段总结要点。",
-        "imageRequirements": [
-          {
-            "position": 1,
-            "type": "cover",
-            "sectionTitle": "",
-            "imageSource": "{fixedMethod}",
-            "keywords": "",
-            "prompt": "围绕文章主题生成适合作为封面的配图描述",
-            "placeholderId": ""
-          },
-          {
-            "position": 2,
-            "type": "section",
-            "sectionTitle": "章节标题1",
-            "imageSource": "{fixedMethod}",
-            "keywords": "",
-            "prompt": "围绕章节核心观点生成配图描述",
-            "placeholderId": "{{IMAGE_PLACEHOLDER_1}}"
-          }
-        ]
-      }
-      """;
-
-  /**
-   * SVG 概念示意图生成 Prompt
-   */
-  String SVG_DIAGRAM_GENERATION_PROMPT = """
-      ### 背景 ###
-      你是一位资深的信息可视化设计师，擅长将抽象概念转化为直观易懂的 SVG 示意图。
-      你的作品曾用于知名媒体和技术文档，风格简洁现代、逻辑清晰。
-
-      ### 需求 ###
-      {requirement}
-
-      ### 任务步骤 ###
-      1. 分析需求：理解要表达的核心概念和逻辑关系
-      2. 设计布局：确定图形的整体结构（中心辐射、层级、流程等）
-      3. 选择元素：使用圆形、矩形、箭头、连线等基础图形
-      4. 配色美化：应用现代配色方案，确保视觉协调
-      5. 生成代码：输出完整规范的 SVG 代码
-
-      ### 技术规范 ###
-      - 必须包含 <?xml version="1.0" encoding="UTF-8"?> 声明
-      - 必须设置 viewBox="0 0 800 600"，便于自适应缩放
-      - 字体使用 font-family="Arial, sans-serif"，确保跨平台兼容
-      - 使用语义化的 id 和 class 命名
-
-      ### 设计风格 ###
-      - 配色：蓝色系为主（#4A90D9、#6BB3F0、#E8F4FC），辅以渐变效果
-      - 布局：留白充足，元素间距均匀，层次分明
-      - 文字：标签简洁，字号适中（14-18px），颜色对比清晰
-      - 连线：使用带箭头的线条表示方向和关系，线条粗细 2-3px
-
-      ### 输出要求 ###
-      直接返回完整的 SVG XML 代码，不要有任何解释或其他内容。
-      """;
-
-  // region 文章风格 Prompt
-
-  /**
-   * 科技风格 Prompt 附加
-   */
-  String STYLE_TECH_PROMPT = """
-
-      **重要：请使用科技风格进行创作**
-      - 语言专业、严谨，多使用专业术语和行业词汇
-      - 逻辑清晰，重视数据和事实支撑
-      - 叙述客观理性，避免主观情感表达
-      - 突出技术创新、发展趋势、解决方案
-      - 可适当引用权威资料或专家观点
-      """;
-
-  /**
-   * 情感风格 Prompt 附加
-   */
-  String STYLE_EMOTIONAL_PROMPT = """
-
-      **重要：请使用情感风格进行创作**
-      - 语言温暖细腻，富有感染力和共鸣
-      - 善用比喻、排比等修辞手法增强表现力
-      - 注重情感表达，讲述真实故事和感悟
-      - 引发读者情感共鸣，传递正能量
-      - 适当使用抒情语句，增加文章温度
-      """;
-
-  /**
-   * 教育风格 Prompt 附加
-   */
-  String STYLE_EDUCATIONAL_PROMPT = """
-
-      **重要：请使用教育风格进行创作**
-      - 语言通俗易懂，深入浅出地讲解概念
-      - 结构清晰，循序渐进，便于学习理解
-      - 多用案例、类比帮助读者理解复杂内容
-      - 总结重点知识点，提供实用的学习建议
-      - 鼓励思考，启发读者自主学习和探索
-      """;
-
-  /**
-   * 轻松幽默风格 Prompt 附加
-   */
-  String STYLE_HUMOROUS_PROMPT = """
-
-      **重要：请使用轻松幽默风格进行创作**
-      - 语言轻松活泼，幽默风趣
-      - 善用网络流行语、俏皮话和有趣的比喻
-      - 适当自嘲或调侃，增加趣味性
-      - 内容轻松易读，让读者在愉快中获取信息
-      - 可加入一些有趣的段子或梗，但不失专业性
-      """;
-
-  // endregion
+    // endregion
 
 }
