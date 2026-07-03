@@ -128,11 +128,15 @@ public class ContentGeneratorAgent implements NodeAction {
             String mainTitle, String subTitle,
             ArticleState.OutlineSection section, String style,
             int sectionIndex, Consumer<String> streamHandler) {
+
         // ReAct 上下文：累积本轮搜索到的资料
         StringBuilder reactContext = new StringBuilder();
         String sectionTitle = section.getTitle();
         String sectionPoints = String.join("\n", section.getPoints() != null ?
                 section.getPoints() : List.of());
+
+        // 在章节开始时
+        StreamHandlerContext.send("REACT_SECTION_START:" + sectionTitle);
 
         // ReAct
         for (int round = 0; round < MAX_REACT_ROUNDS; round++) {
@@ -141,7 +145,8 @@ public class ContentGeneratorAgent implements NodeAction {
             // =========Thought：让LLM 判断是否需要调用工具=========
             String thoughtPrompt = buildThoughtPrompt(mainTitle, subTitle, sectionTitle, sectionPoints,
                     reactContext.toString(), round);
-
+            // 在 Thought 阶段（调 LLM 前后）
+            StreamHandlerContext.send("REACT_THOUGHT:sect=" + sectionTitle + ",round=" + (round + 1));
             ChatResponse thoughtResponse = chatModel.call(new Prompt(new UserMessage(thoughtPrompt)));
             String thought = thoughtResponse.getResult().getOutput().getText();
 
@@ -167,7 +172,10 @@ public class ContentGeneratorAgent implements NodeAction {
                 // LLM 需要查资料 → 调用工具（最后一轮强制 GENERATE，不调工具）
                 String toolName = extractToolName(thought);
                 String toolArgs = extractToolArgs(thought);
+                String query = extractQueryFromArgs(toolArgs);
 
+                // 推送：正在调用工具
+                StreamHandlerContext.send("REACT_TOOL_CALL:tool=" + toolName + ",query=" + query);
                 log.info("ReAct 决策: CALL_TOOL, section={}, tool={}, round={}",
                         sectionTitle, toolName, round + 1);
 
@@ -177,7 +185,8 @@ public class ContentGeneratorAgent implements NodeAction {
                 // ======== Observation: 把搜索结果加入上下文 ========
                 reactContext.append("\n【第 ").append(round + 1).append(" 轮搜索结果】\n")
                         .append(observation).append("\n");
-
+                // 推送：工具调用完成
+                StreamHandlerContext.send("REACT_TOOL_RESULT:tool=" + toolName + ",success=" + result.isSuccess());
                 log.info("ReAct Observation: section={}, round={}, observationLength={}",
                         sectionTitle, round + 1, observation.length());
 
@@ -197,6 +206,16 @@ public class ContentGeneratorAgent implements NodeAction {
                 mainTitle, subTitle, sectionTitle, sectionPoints,
                 reactContext.toString(), style, streamHandler
         );
+    }
+
+    private String extractQueryFromArgs(String args) {
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, String> argsMap = GsonUtils.getInstance().fromJson(args, Map.class);
+            return argsMap.getOrDefault("query", "");
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     /**

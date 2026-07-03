@@ -64,6 +64,8 @@ public class ImageAnalyzerAgent implements NodeAction {
                 .orElse(null);
 
         log.info("ImageAnalyzerAgent 开始执行: mainTitle={}, enabledMethods={}", mainTitle, enabledMethods);
+        // 在 log.info 之后、调 LLM 之前
+        StreamHandlerContext.send("AGENT4_ANALYZING:");
 
         String prompt = buildImageRequirementsPrompt(mainTitle, content, enabledMethods);
 

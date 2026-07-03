@@ -165,6 +165,17 @@
                             </div>
                         </div>
 
+                        <!-- 在正文预览之前，插入搜索状态指示 -->
+                        <div v-if="isSearching" class="search-indicator">
+                            <a-spin size="small" />
+                            <span class="search-text">
+                                <span class="search-label">调用工具</span>
+                                <code class="search-tool">web_search</code>
+                                <span class="search-query">{{ currentSearchQuery }}</span>
+                            </span>
+                            <span class="search-status">第 {{ currentReactRound }}/3 轮</span>
+                        </div>
+
                         <!-- 正文预览（流式输出） -->
                         <div v-if="article.content" class="content-preview">
                             <div v-html="markdownToHtml(article.content)" class="markdown-body"></div>
@@ -205,8 +216,7 @@
                             <p class="article-subtitle">{{ article.subTitle }}</p>
                         </div>
                         <div class="content-preview">
-                            <div v-html="markdownToHtml(completedArticleMarkdown)"
-                                class="markdown-body"></div>
+                            <div v-html="markdownToHtml(completedArticleMarkdown)" class="markdown-body"></div>
                         </div>
                     </div>
                 </Transition>
@@ -520,6 +530,11 @@ const errorVisible = ref(false)
 const errorMessage = ref('')
 const confirmLoading = ref(false)
 const regenerateTitleLoading = ref(false)
+// ReAct 工具调用相关状态
+const currentReactSection = ref('')
+const currentReactRound = ref(0)
+const isSearching = ref(false)
+const currentSearchQuery = ref('')
 
 // 实时日志
 interface RealtimeLog {
@@ -810,6 +825,48 @@ const handleSSEMessage = (msg: SSEMessage) => {
             addLog('✨ 文章创作完成！', 'success')
             break
 
+        case 'REACT_SECTION_START':
+            currentReactSection.value = msg.content || ''
+            currentReactRound.value = 0
+            isSearching.value = false
+            addLog(`📝 开始撰写章节：${msg.content}`, 'info')
+            break
+
+        case 'REACT_THOUGHT': {
+            const roundMatch = (msg.content || '').match(/round=(\d+)/)
+            currentReactRound.value = roundMatch ? parseInt(roundMatch[1]) : 0
+            addLog(`🤔 第 ${currentReactRound.value} 轮：评估是否需要搜索资料`, 'info')
+            break
+        }
+
+        case 'REACT_TOOL_CALL': {
+            isSearching.value = true
+            const toolMatch = (msg.content || '').match(/tool=([^,]+)/)
+            const queryMatch = (msg.content || '').match(/query=([^,]+)/)
+            currentSearchQuery.value = queryMatch ? decodeURIComponent(queryMatch[1]) : ''
+            const toolName = toolMatch ? toolMatch[1] : 'web_search'
+            addLog(`🔍 [${toolName}] 搜索: ${currentSearchQuery.value}`, 'info')
+            // 搜索开始时，将搜索指示器滚动到可视区域
+            nextTick(() => {
+                document.querySelector('.search-indicator')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+            })
+            break
+        }
+
+        case 'REACT_TOOL_RESULT': {
+            // 延迟隐藏搜索指示器，避免因搜索太快（300ms）导致用户看不到
+            setTimeout(() => { isSearching.value = false }, 1500)
+            const successMatch = (msg.content || '').match(/success=(true|false)/)
+            const searchSuccess = successMatch ? successMatch[1] === 'true' : false
+            addLog(searchSuccess ? '✅ 搜索完成' : '⚠️ 搜索未返回有效结果', searchSuccess ? 'success' : 'warning')
+            break
+        }
+
+        case 'AGENT4_ANALYZING':
+            addLog('智能体4：正在分析配图需求...', 'info')
+            break
+
+
         case 'ERROR':
             errorMessage.value = msg.message || '创作失败'
             errorVisible.value = true
@@ -868,7 +925,9 @@ const handleConfirmTitle = async (data: { mainTitle: string, subTitle: string, u
 
 // 确认大纲
 const handleConfirmOutline = async (outlineData: Array<{ section: number, title: string, points: string[] }>) => {
+    if (confirmLoading.value) return 
     confirmLoading.value = true
+    isCreating.value = true
     try {
         await confirmOutline({
             taskId: taskId.value,
@@ -887,6 +946,7 @@ const handleConfirmOutline = async (outlineData: Array<{ section: number, title:
         message.error(err.message || '确认大纲失败')
     } finally {
         confirmLoading.value = false
+        isCreating.value = false
     }
 }
 

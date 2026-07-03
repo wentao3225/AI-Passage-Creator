@@ -113,24 +113,24 @@ public class ArticleController {
         return ResultUtils.success(null);
     }
 
-        /**
-         * 重新生成标题方案
-         */
-        @PostMapping("/regenerate-titles")
-        @Operation(summary = "重新生成标题方案")
-        public BaseResponse<Void> regenerateTitles(@RequestBody ArticleRegenerateTitlesRequest request,
-                                                                                           HttpServletRequest httpServletRequest) {
-                ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
-                ThrowUtils.throwIf(request.getTaskId() == null || request.getTaskId().trim().isEmpty(),
-                                ErrorCode.PARAMS_ERROR, "任务ID不能为空");
+    /**
+     * 重新生成标题方案
+     */
+    @PostMapping("/regenerate-titles")
+    @Operation(summary = "重新生成标题方案")
+    public BaseResponse<Void> regenerateTitles(@RequestBody ArticleRegenerateTitlesRequest request,
+                                               HttpServletRequest httpServletRequest) {
+        ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
+        ThrowUtils.throwIf(request.getTaskId() == null || request.getTaskId().trim().isEmpty(),
+                ErrorCode.PARAMS_ERROR, "任务ID不能为空");
 
-                User loginUser = userService.getLoginUser(httpServletRequest);
+        User loginUser = userService.getLoginUser(httpServletRequest);
 
-                Article article = articleService.prepareTitleRegeneration(request.getTaskId(), loginUser);
-                articleAsyncService.executePhase1(article.getTaskId(), article.getTopic(), article.getStyle());
+        Article article = articleService.prepareTitleRegeneration(request.getTaskId(), loginUser);
+        articleAsyncService.executePhase1(article.getTaskId(), article.getTopic(), article.getStyle());
 
-                return ResultUtils.success(null);
-        }
+        return ResultUtils.success(null);
+    }
 
     /**
      * 从指定阶段重跑
@@ -141,7 +141,7 @@ public class ArticleController {
                                            HttpServletRequest httpServletRequest) {
         ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(request.getTaskId() == null || request.getTaskId().trim().isEmpty(),
-                ErrorCode.PARAMS_ERROR, "任务ID不能为空");
+                ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
         ThrowUtils.throwIf(request.getTargetPhase() == null || request.getTargetPhase().trim().isEmpty(),
                 ErrorCode.PARAMS_ERROR, "目标阶段不能为空");
 
@@ -172,7 +172,7 @@ public class ArticleController {
                                              HttpServletRequest httpServletRequest) {
         ThrowUtils.throwIf(request == null, ErrorCode.PARAMS_ERROR);
         ThrowUtils.throwIf(request.getTaskId() == null || request.getTaskId().trim().isEmpty(),
-                ErrorCode.PARAMS_ERROR, "任务ID不能为空");
+                ErrorCode.PARAMS_ERROR, "任务 ID 不能为空");
         ThrowUtils.throwIf(request.getOutline() == null || request.getOutline().isEmpty(),
                 ErrorCode.PARAMS_ERROR, "大纲不能为空");
 
@@ -255,14 +255,14 @@ public class ArticleController {
         return ResultUtils.success(articleVO);
     }
 
-        /**
-         * 是否属于支持重跑的生成阶段。
-         */
-        private boolean isRestartablePhase(ArticlePhaseEnum phase) {
-                return phase == ArticlePhaseEnum.TITLE_GENERATING
-                                || phase == ArticlePhaseEnum.OUTLINE_GENERATING
-                                || phase == ArticlePhaseEnum.CONTENT_GENERATING;
-        }
+    /**
+     * 是否属于支持重跑的生成阶段。
+     */
+    private boolean isRestartablePhase(ArticlePhaseEnum phase) {
+        return phase == ArticlePhaseEnum.TITLE_GENERATING
+                || phase == ArticlePhaseEnum.OUTLINE_GENERATING
+                || phase == ArticlePhaseEnum.CONTENT_GENERATING;
+    }
 
     /**
      * 分页查询文章列表

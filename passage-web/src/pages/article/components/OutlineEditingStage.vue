@@ -191,6 +191,7 @@ const deletePoint = (sectionIndex: number, pointIndex: number) => {
 }
 
 const handleConfirm = () => {
+  if (props.loading) return
   emit('confirm', outlineSections.value)
 }
 

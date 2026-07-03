@@ -294,6 +294,26 @@ public class ArticleAsyncService {
             return data;
         }
 
+        // 处理 ReAct 进度消息（格式 "REACT_xxx:内容"）
+        if (message.startsWith("REACT_")) {
+            int colonIdx = message.indexOf(':');
+            if (colonIdx > 0) {
+                String type = message.substring(0, colonIdx);
+                String content = message.substring(colonIdx + 1);
+                Map<String, Object> data = new HashMap<>();
+                data.put("type", type);
+                data.put("content", content);
+                return data;
+            }
+        }
+
+        // 处理 AGENT4_ANALYZING 消息
+        if (message.startsWith("AGENT4_ANALYZING")) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("type", "AGENT4_ANALYZING");
+            return data;
+        }
+
         // 处理完成消息（枚举值）
         return buildCompleteMessageData(message, state);
     }
