@@ -2,14 +2,15 @@
 
 <div align="center">
 
-**一个面向长文创作场景的人机协同 AI 内容创作平台**
+**一个面向长文创作场景的多 Agent AI 内容创作平台——在确定性 Pipeline 框架内引入 Tool Calling、ReAct 循环与条件分支动态决策**
 
 ![Java 21](https://img.shields.io/badge/Java-21-orange)
 ![Spring Boot 3.5](https://img.shields.io/badge/Spring%20Boot-3.5-brightgreen)
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D)
+![Spring AI Alibaba](https://img.shields.io/badge/Spring%20AI%20Alibaba-StateGraph-blue)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-[快速启动](#快速启动) • [核心架构](#核心架构) • [使用流程](#使用流程) • [技术栈](#技术栈) • [项目亮点](#项目亮点)
+[快速启动](#快速启动) • [核心架构](#核心架构) • [Agent 动态决策](#agent-动态决策) • [使用流程](#使用流程) • [技术栈](#技术栈) • [项目亮点](#项目亮点)
 
 </div>
 
@@ -20,15 +21,17 @@
 AI-Passage-Creator 不是单次调用模型接口的文本生成 Demo，而是一个**完整的 AI 应用系统**，把文章生产拆成：
 
 ```
-选题 → 标题生成与选择 → 大纲生成与编辑 → 正文+配图并行生成 → 图文合成 → 结果落库
+选题 → 标题生成与选择 → 大纲生成与编辑 → 正文生成(ReAct) → 质量评估(条件分支) → 配图并行 → 图文合成 → 结果落库
 ```
 
 **系统特点**：
 - ✅ **分阶段可控**：用户在标题、大纲阶段有确认权，避免黑盒生成
-- ✅ **实时反馈**：SSE 流式推送，用户能看到完整的生成过程（进度 0-100%）
-- ✅ **多 Agent 编排**：标题、大纲、正文、配图分析、配图执行、图文合成 6 个 Agent 协作
-- ✅ **人机协同**：支持标题选择、大纲编辑、拖拽排序、错误重试
-- ✅ **工程化**：多层容错、自动降级、SVG 缓存优化、完整日志追踪
+- ✅ **实时反馈**：SSE 流式推送，用户能看到完整的生成过程（14 种消息类型）
+- ✅ **多 Agent 编排**：标题/大纲/正文/评估/增强/配图分析/配图执行/图文合成 8 个 Agent 协作
+- ✅ **Agent 动态决策**：正文生成引入 ReAct 循环（Thought→Action→Observation），Agent 可自主调用 web_search 查资料
+- ✅ **条件分支路由**：StateGraph 条件分支实现质量门禁，正文不达标自动走增强流程
+- ✅ **人机协同**：支持标题选择、大纲编辑、拖拽排序、阶段级重试
+- ✅ **工程化**：Tool Calling 基础设施、多层容错、自动降级、SVG 缓存优化、AOP 执行日志
 
 ---
 
@@ -100,16 +103,17 @@ npm run dev
 用户选择标题
     ↓
 [Phase2] OutlineGeneratorAgent 流式生成大纲
-    ↓ (SSE: AGENT2_STREAMING x N, OUTLINE_GENERATED)
+    ↓ (SSE: AGENT2_STREAMING x N, AGENT2_COMPLETE)
 用户编辑大纲
     ↓
-[Phase3] 三个 Agent 并行执行
-    ├─ ContentGeneratorAgent: 流式生成正文（含占位符）
-    ├─ ImageAnalyzerAgent: 分析配图需求
-    └─ ParallelImageGenerator: 按 source 分组并行生成图片
-    ↓ (SSE: AGENT3_STREAMING, AGENT4_COMPLETE, IMAGE_COMPLETE x N)
-[Agent6] ContentMergerAgent 图文合成
-    ↓
+[Phase3] 多 Agent 编排（条件分支 DAG）
+    ├─ ContentGeneratorAgent(ReAct)
+    │    └─ 每章节最多 3 轮推理-行动，可调用 web_search 查资料
+    ├─ ContentEvaluatorAgent (LLM-as-Judge 五维评分)
+    │    ├─ score ≥ 7 → ImageAnalyzerAgent → ParallelImageGenerator
+    │    └─ score < 7 → ContentEnhancerAgent → 重新评估（≤2 轮）
+    └─ ContentMergerAgent 图文合成
+    ↓ (SSE: AGENT3_STREAMING, AGENT_EVALUATING, IMAGE_COMPLETE x N, MERGE_COMPLETE)
 保存到数据库
     ↓
 用户查看/下载/再创作
@@ -119,11 +123,13 @@ npm run dev
 
 | 模块 | 职责 | 关键文件 |
 |------|------|--------|
-| **Agent 编排** | 5 个 Agent + 状态管理 | `agent/ArticleAgentOrchestrator.java` |
+| **Agent 编排** | 8 个 Agent + 状态管理 + 条件分支 | `agent/ArticleAgentOrchestrator.java` |
+| **Tool Calling** | 工具接口 + 注册中心 + web_search 等 4 个工具 | `agent/tools/Tool.java`, `ToolRegistry.java` |
+| **ReAct 循环** | 正文按章节推理-行动循环 | `agent/agents/ContentGeneratorAgent.java` |
+| **条件分支** | 质量评估 + 内容增强 + 条件路由 | `agent/agents/ContentEvaluatorAgent.java` |
 | **SSE 推送** | 实时进度反馈 | `core/manager/SseEmitterManager.java` |
 | **多源配图** | 并行生成 + 自动降级 | `agent/parallel/ParallelImageGenerator.java` |
 | **业务流程** | 三阶段异步任务 | `core/service/ArticleAsyncService.java` |
-| **数据持久化** | MyBatis-Flex + Redis | `mapper/ArticleMapper.java` |
 
 ### 前端核心页面
 
@@ -132,6 +138,64 @@ npm run dev
 | `ArticleCreatePage.vue` | 创作主页面（标题选择→大纲编辑→生成监看） |
 | `ArticleListPage.vue` | 文章列表（分页、筛选、删除） |
 | `ArticleDetailPage.vue` | 文章详情（内容查看、重试、导出） |
+
+---
+
+## 🤖 Agent 动态决策
+
+本项目在**预编排确定性 Pipeline 框架**内引入了三层动态决策能力，打破纯线性链，让 Agent 具备有限的自主判断和工具调用能力。
+
+### 1️⃣ Tool Calling 基础设施
+
+轻量级工具调用体系，不依赖外部框架：
+
+| 组件 | 职责 |
+|------|------|
+| `Tool` 接口 | 定义 getName / getDescription / getParameterDescription / execute |
+| `ToolRegistry` | 运行时注册中心，`@Resource List<Tool>` 自动扫描注册 |
+| `getToolsDescriptionForLLM()` | 生成工具描述文本，注入 Agent Prompt 供 LLM 决策 |
+
+**已注册工具**：
+
+| 工具 | 名称 | 用途 |
+|------|------|------|
+| `WebSearchTool` | web_search | Bing 网页搜索（Jsoup），补充实时资料 |
+| `ImageSearchTool` | image_search | 封装 ImageServiceStrategy，按关键词搜索配图 |
+| `SvgGeneratorTool` | svg_generator | 调用 LLM 生成 SVG 示意图 |
+| `ImageGenerationTool` | image_generation | 图片生成能力封装 |
+
+### 2️⃣ ContentGeneratorAgent ReAct 循环
+
+正文生成按章节逐段处理，每章节引入 ReAct 推理-行动循环（最多 3 轮）：
+
+```
+Round 1: Thought → DECISION
+   ├─ GENERATE → 直接生成正文 → 结束
+   └─ CALL_TOOL → web_search("查询词") → 结果写入 reactContext → Round 2
+Round 2: Thought（基于搜索结果）→ DECISION
+   ├─ GENERATE → 基于资料生成正文 → 结束
+   └─ CALL_TOOL → 继续搜索 → Round 3
+Round 3: 强制 GENERATE（兜底，防无限循环）
+```
+
+- 不同章节搜索不同资料，reactContext 逐章独立，互不干扰
+- 搜索失败不阻断生成（LLM 知道"查不到"后自行生成）
+- 前端同步展示搜索指示器（[web_search] badge + 轮次显示）
+
+### 3️⃣ StateGraph 条件分支
+
+Phase3 从线性链升级为条件分支 DAG：
+
+```
+START → content_generator(ReAct)
+     → content_evaluator（LLM-as-Judge 五维评分）
+         ├─ score ≥ 7 → image_analyzer → ... → END
+         └─ score < 7 → content_enhancer → 重新评估（≤2 轮）
+```
+
+- **ContentEvaluatorAgent**：评估内容充实度、语言自然度、逻辑连贯性、可读性、场景感
+- **ContentEnhancerAgent**：根据评估反馈针对性优化正文，通过 SSE 推送更新
+- **防死循环**：第二轮（round ≥ 1）评估器返回满分强制通过 + 路由层 round ≥ 2 二次保险
 
 ---
 
@@ -148,9 +212,10 @@ npm run dev
 6. 编辑/调整大纲（可拖拽排序）
 7. 点击"确认大纲"，启动正文+配图
 8. 观看实时进度：
-   - 正文生成中... (流式显示)
+   - 正文生成中...（按章节流式显示，ReAct 循环搜索资料时显示搜索标志）
+   - 质量评估中...（如质量不达标自动进入增强优化）
    - 配图分析中...
-   - 生成图片 1/10, 2/10, ... (逐张推送)
+   - 生成图片 1/10, 2/10, ...（逐张推送）
 9. 完成！查看最终文章
 ```
 
@@ -174,10 +239,11 @@ npm run dev
 
 ### 后端
 - **JDK 21**, **Spring Boot 3.5.x**
-- **Spring AI Alibaba**：调用阿里云 GLM 模型
+- **Spring AI Alibaba**：调用阿里云 GLM 模型 + StateGraph 编排
 - **MyBatis-Flex**：轻量级 ORM
 - **Redis**：Session + 配图缓存
-- **Java Concurrent**：并行执行配图
+- **Java Concurrent**：并行执行配图 + 异步线程池
+- **Jsoup**：WebSearchTool 网页搜索解析
 
 ### 前端
 - **Vue 3**, **Vite**, **TypeScript**
@@ -190,29 +256,36 @@ npm run dev
 
 ## ✨ 项目亮点
 
-### 1️⃣ 多 Agent 编排框架
-- 6 个 Agent 各司其职，输入/输出清晰
-- 支持从任意阶段重新执行（断点续传）
-- 易于扩展：新增 Agent 无需改 Controller
+### 1️⃣ 多 Agent 编排 + 条件分支 DAG
+- 8 个 Agent 各司其职，StateGraph 阶段化编排
+- **条件分支路由**：正文生成后经质量评估，不达标自动走增强→重新评估，打破纯线性链
+- 支持从任意阶段重试，新增 Agent 无需改 Controller
 
-### 2️⃣ SSE 流式推送 + 并行执行
+### 2️⃣ Tool Calling + ReAct 动态决策
+- **轻量级 Tool Calling**：Tool 接口 + ToolRegistry 注册中心，Agent 可自主调用工具
+- **ReAct 推理-行动循环**：ContentGeneratorAgent 按章节 Thought→Action→Observation，最多 3 轮
+- **WebSearchTool**：Bing 搜索实时资料补充正文，搜索失败不阻塞生成
+
+### 3️⃣ SSE 流式推送 + 并行执行
 - Phase2/3 流式输出，用户实时看进度
-- 配图按 source 分组并行，速度提升 40%（11s → 6s）
+- 14 种消息类型覆盖标题、大纲、正文、评估、增强、配图全流程
+- 配图按 source 分组并行，速度提升约 50%（12s → 6s）
 - 单张图完成立刻推送，不等待全部完成
 
-### 3️⃣ 多层容错体系
-- **LLM 级**：JSON 容错、规范化修复
-- **需求级**：字段验证、占位符对齐
+### 4️⃣ 多层容错体系
+- **LLM 级**：JSON 三层容错（提取→规范化→修复→反序列化）
+- **需求级**：字段验证、来源合规检查、占位符对齐
 - **执行级**：自动降级、多源兜底（PICSUM 保底）
+- **循环防死锁**：ReAct 第 3 轮强制生成 + 条件分支第 2 轮强制通过
 
-### 4️⃣ 人机协同设计
-- 标题可选、大纲可编、错误可重试
-- 既能加速也能精调
-- 用户对生成过程有充分控制权
+### 5️⃣ 人机协同设计
+- 标题可选、大纲可编、质量不达标自动增强
+- 阶段级重试，失败不影响已生成结果
+- SSE 实时反馈，用户对生成过程有充分控制权
 
-### 5️⃣ 完整可观测性
+### 6️⃣ 完整可观测性
 - AOP 自动记录每个 Agent 执行（耗时、入参、出参）
-- SSE 实时反馈系统状态
+- SSE 实时推送系统状态
 - agent_log 表支持事后回查和性能分析
 
 ---
@@ -234,10 +307,24 @@ npm run dev
 AI-Passage-Creator/
 ├── src/main/java/com/ywt/passage/
 │   ├── agent/                    # Agent 编排核心
-│   │   ├── ArticleAgentOrchestrator.java
-│   │   ├── agents/               # 6 个 Agent
+│   │   ├── ArticleAgentOrchestrator.java  # StateGraph 编排器（含条件分支）
+│   │   ├── agents/               # 8 个 Agent
+│   │   │   ├── TitleGeneratorAgent.java
+│   │   │   ├── OutlineGeneratorAgent.java
+│   │   │   ├── ContentGeneratorAgent.java  # 含 ReAct 循环
+│   │   │   ├── ContentEvaluatorAgent.java  # 质量评估（条件分支）
+│   │   │   ├── ContentEnhancerAgent.java   # 内容增强（条件分支）
+│   │   │   ├── ImageAnalyzerAgent.java
+│   │   │   └── ContentMergerAgent.java
 │   │   ├── parallel/             # 并行配图
-│   │   └── tools/                # 工具函数
+│   │   ├── tools/                # Tool Calling 基础设施
+│   │   │   ├── Tool.java         # 工具接口
+│   │   │   ├── ToolRegistry.java # 工具注册中心
+│   │   │   ├── ToolCallResult.java
+│   │   │   ├── WebSearchTool.java
+│   │   │   ├── ImageSearchTool.java
+│   │   │   └── SvgGeneratorTool.java
+│   │   └── config/AgentConfig.java
 │   ├── controller/               # REST 接口
 │   ├── service/                  # 业务逻辑
 │   ├── mapper/                   # 数据持久化
